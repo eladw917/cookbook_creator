@@ -9,7 +9,8 @@ If you're new to the project:
 1. **Setup**: Follow the [setup guide](setup.md) to get your development environment running
 2. **Usage**: Check the main [README](../README.md) for usage instructions
 3. **API**: See [api.md](api.md) for detailed API documentation
-4. **Scripts**: Use `../servers.sh` to manage development servers
+4. **Development**: Read [development.md](development.md) for coding guidelines
+5. **Scripts**: Use `../servers.sh` to manage development servers
 
 ## Documentation Files
 
@@ -24,6 +25,7 @@ If you're new to the project:
 - **[api.md](api.md)** - Comprehensive API documentation for the FastAPI backend
 - **[setup.md](setup.md)** - Detailed setup and installation guide
 - **[frontend.md](frontend.md)** - Frontend component documentation
+- **[development.md](development.md)** - Development guidelines and coding standards
 
 ## Development Workflow
 
@@ -130,10 +132,11 @@ See [api.md](api.md) for complete API documentation.
 
 When contributing:
 
-1. Update relevant documentation
-2. Follow the established patterns
-3. Test thoroughly before submitting
-4. Update this README if adding new docs
+1. Read the [development guidelines](development.md) for coding standards
+2. Follow the established patterns, especially AI prompt management
+3. Update relevant documentation
+4. Test thoroughly before submitting
+5. Update this README if adding new docs
 
 ---
 

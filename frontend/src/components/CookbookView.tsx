@@ -1,4 +1,5 @@
 import { useLayoutEffect, useRef, useState, useEffect } from 'react';
+import QRCode from 'react-qr-code';
 import type { Recipe, Visuals } from '../App';
 
 interface CookbookViewProps {
@@ -237,6 +238,14 @@ export default function CookbookView({ recipe, visuals, viewMode }: CookbookView
                             ) : (
                                 <div className="cookbook-hero-placeholder">
                                     🍽️
+                                    {recipe.video_url && (
+                                        <div className="channel-info-box">
+                                            <QRCode value={recipe.video_url} size={60} />
+                                            <div className="channel-name">
+                                                {recipe.channel_name ? `@${recipe.channel_name}` : ''}
+                                            </div>
+                                        </div>
+                                    )}
                                 </div>
                             )}
                         </div>
@@ -274,37 +283,65 @@ export default function CookbookView({ recipe, visuals, viewMode }: CookbookView
                         <div className="cookbook-two-column">
                             {/* Left Column: Ingredients + Overflow Instructions */}
                             <div className="cookbook-column" ref={ingredientsColumnRef}>
-                                <h2 className="cookbook-section-title">Ingredients</h2>
-                                {recipe.servings && (
-                                    <div className="cookbook-servings-subheader">
-                                        {recipe.servings}
-                                    </div>
-                                )}
+                                <h2 className="cookbook-section-title">
+                                    Ingredients{recipe.servings ? (() => {
+                                        const servingsMatch = recipe.servings.match(/(\d+)/);
+                                        const servingsNum = servingsMatch ? parseInt(servingsMatch[1]) : null;
+                                        return servingsNum ? ` (for ${servingsNum} ${servingsNum === 1 ? 'serving' : 'servings'})` : '';
+                                    })() : ''}
+                                </h2>
                                 <ul className="cookbook-ingredients" ref={ingredientsContentRef}>
-                                    {recipe.ingredients.map((item, index) => {
-                                        let ingredientText = '';
-                                        if (item.quantity && item.quantity !== '-') {
-                                            ingredientText += item.quantity;
-                                        }
-                                        if (item.unit && item.unit !== '-') {
-                                            if (ingredientText) ingredientText += ' ';
-                                            ingredientText += item.unit;
-                                        }
-                                        if (item.quantity.toLowerCase().includes('sprinkle') && item.unit === '-') {
-                                            ingredientText += ` of ${item.ingredient}`;
-                                        } else {
-                                            if (ingredientText) ingredientText += ' ';
-                                            ingredientText += item.ingredient;
+                                    {(() => {
+                                        // Group ingredients by purpose
+                                        const groupedIngredients: Record<string, typeof recipe.ingredients> = {};
+                                        recipe.ingredients.forEach(item => {
+                                            const purpose = item.purpose || 'cooking';
+                                            if (!groupedIngredients[purpose]) {
+                                                groupedIngredients[purpose] = [];
+                                            }
+                                            groupedIngredients[purpose].push(item);
+                                        });
+
+                                        // Sort purposes: cooking first, then others in order they appear
+                                        const purposes = Object.keys(groupedIngredients);
+                                        const cookingIndex = purposes.indexOf('cooking');
+                                        if (cookingIndex > -1) {
+                                            purposes.splice(cookingIndex, 1);
+                                            purposes.unshift('cooking');
                                         }
 
-                                        return (
-                                            <li key={index} className="cookbook-ingredient-item">
-                                                <span className="ingredient-text">
-                                                    {ingredientText}
-                                                </span>
-                                            </li>
+                                        return purposes.flatMap(purpose =>
+                                            groupedIngredients[purpose].map((item, index) => {
+                                                let ingredientText = '';
+                                                if (item.quantity && item.quantity !== '-') {
+                                                    ingredientText += item.quantity;
+                                                }
+                                                if (item.unit && item.unit !== '-') {
+                                                    if (ingredientText) ingredientText += ' ';
+                                                    ingredientText += item.unit;
+                                                }
+                                                if (item.quantity.toLowerCase().includes('sprinkle') && item.unit === '-') {
+                                                    ingredientText += ` of ${item.ingredient}`;
+                                                } else {
+                                                    if (ingredientText) ingredientText += ' ';
+                                                    ingredientText += item.ingredient;
+                                                }
+
+                                                return (
+                                                    <li key={`${purpose}-${index}`} className="cookbook-ingredient-item">
+                                                        {purpose !== 'cooking' && index === 0 && (
+                                                            <div style={{ fontWeight: 'bold', textTransform: 'capitalize', marginBottom: '0.25rem', fontSize: '0.9rem' }}>
+                                                                {purpose}
+                                                            </div>
+                                                        )}
+                                                        <span className="ingredient-text">
+                                                            {ingredientText}
+                                                        </span>
+                                                    </li>
+                                                );
+                                            })
                                         );
-                                    })}
+                                    })()}
                                 </ul>
 
                                 {/* Overflow Instructions in Ingredients Column */}
