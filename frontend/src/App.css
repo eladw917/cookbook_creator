@@ -1,0 +1,1282 @@
+:root {
+  --primary: #ff6b35;
+  --primary-dark: #e85a2a;
+  --secondary: #004e89;
+  --background: #0a0e27;
+  --surface: #1a1f3a;
+  --surface-light: #252b4a;
+  --text: #e8eaf6;
+  --text-muted: #9fa8da;
+  --success: #4caf50;
+  --border: #3d4466;
+}
+
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+body {
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  background: var(--background);
+  color: var(--text);
+  line-height: 1.6;
+  min-height: 100vh;
+}
+
+.app {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 2rem;
+}
+
+header {
+  text-align: center;
+  margin-bottom: 3rem;
+  padding: 2rem 0;
+}
+
+header h1 {
+  font-size: 3rem;
+  font-weight: 800;
+  background: linear-gradient(135deg, var(--primary), #ffa07a);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  margin-bottom: 0.5rem;
+}
+
+header p {
+  color: var(--text-muted);
+  font-size: 1.1rem;
+}
+
+.url-input-container {
+  background: var(--surface);
+  border-radius: 16px;
+  padding: 2rem;
+  margin-bottom: 2rem;
+  border: 1px solid var(--border);
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+}
+
+.url-input-form {
+  display: flex;
+  gap: 1rem;
+}
+
+.url-input-form input {
+  flex: 1;
+  padding: 1rem 1.5rem;
+  background: var(--background);
+  border: 2px solid var(--border);
+  border-radius: 12px;
+  color: var(--text);
+  font-size: 1rem;
+  transition: all 0.3s ease;
+}
+
+.url-input-form input:focus {
+  outline: none;
+  border-color: var(--primary);
+  box-shadow: 0 0 0 3px rgba(255, 107, 53, 0.1);
+}
+
+.url-input-form button {
+  padding: 1rem 2.5rem;
+  background: linear-gradient(135deg, var(--primary), var(--primary-dark));
+  border: none;
+  border-radius: 12px;
+  color: white;
+  font-size: 1rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  box-shadow: 0 4px 16px rgba(255, 107, 53, 0.3);
+}
+
+.url-input-form button:hover:not(:disabled) {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 24px rgba(255, 107, 53, 0.4);
+}
+
+.url-input-form button:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.error {
+  background: rgba(244, 67, 54, 0.1);
+  border: 1px solid rgba(244, 67, 54, 0.3);
+  border-radius: 12px;
+  padding: 1.5rem;
+  margin-bottom: 2rem;
+  color: #ff6b6b;
+}
+
+.recipe-container {
+  background: var(--surface);
+  border-radius: 16px;
+  padding: 2.5rem;
+  border: 1px solid var(--border);
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+}
+
+.recipe-header {
+  margin-bottom: 2rem;
+  padding-bottom: 2rem;
+  border-bottom: 2px solid var(--border);
+}
+
+.recipe-header h2 {
+  font-size: 2.5rem;
+  margin-bottom: 1rem;
+  color: var(--primary);
+}
+
+.recipe-meta {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 1rem;
+  margin-top: 1.5rem;
+}
+
+.meta-item {
+  background: var(--background);
+  padding: 1rem;
+  border-radius: 8px;
+  border: 1px solid var(--border);
+}
+
+.meta-item strong {
+  color: var(--primary);
+  display: block;
+  margin-bottom: 0.25rem;
+  font-size: 0.85rem;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.recipe-section {
+  margin-bottom: 2.5rem;
+}
+
+.recipe-section h3 {
+  font-size: 1.8rem;
+  margin-bottom: 1.5rem;
+  color: var(--text);
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.ingredients-list {
+  display: grid;
+  gap: 0.75rem;
+}
+
+.ingredient-item {
+  background: var(--surface-light);
+  padding: 1rem 1.25rem;
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  border: 1px solid var(--border);
+  transition: all 0.2s ease;
+}
+
+.ingredient-item:hover {
+  background: var(--background);
+  transform: translateX(4px);
+}
+
+.ingredient-quantity {
+  color: var(--primary);
+  font-weight: 600;
+  min-width: 80px;
+}
+
+.instructions-list {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+}
+
+.instruction-item {
+  background: var(--surface-light);
+  padding: 1.5rem;
+  border-radius: 12px;
+  border: 1px solid var(--border);
+  transition: all 0.3s ease;
+}
+
+.instruction-item.key-step {
+  border-color: var(--primary);
+  background: linear-gradient(135deg, var(--surface-light), rgba(255, 107, 53, 0.05));
+}
+
+.instruction-header {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  margin-bottom: 0.75rem;
+}
+
+.step-number {
+  background: var(--primary);
+  color: white;
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 700;
+  flex-shrink: 0;
+}
+
+.step-category {
+  background: var(--background);
+  padding: 0.25rem 0.75rem;
+  border-radius: 6px;
+  font-size: 0.85rem;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.instruction-text {
+  color: var(--text);
+  line-height: 1.7;
+  margin-left: 52px;
+}
+
+.step-visual {
+  margin-top: 1rem;
+  margin-left: 52px;
+}
+
+.step-visual img {
+  width: 100%;
+  max-width: 600px;
+  border-radius: 12px;
+  border: 2px solid var(--primary);
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.3);
+}
+
+.loading-spinner {
+  text-align: center;
+  padding: 2rem;
+  color: var(--text-muted);
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.spinner {
+  display: inline-block;
+  width: 40px;
+  height: 40px;
+  border: 4px solid var(--border);
+  border-top-color: var(--primary);
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+}
+
+/* Cache View Styles */
+.cache-view {
+  background: var(--surface);
+  border-radius: 16px;
+  padding: 2rem;
+  margin-bottom: 2rem;
+  border: 1px solid var(--border);
+}
+
+.cache-view h2 {
+  font-size: 2rem;
+  margin-bottom: 1.5rem;
+  color: var(--primary);
+}
+
+.cache-view.loading,
+.cache-view.empty {
+  text-align: center;
+  padding: 3rem;
+  color: var(--text-muted);
+}
+
+.cached-videos-list {
+  display: grid;
+  gap: 1.5rem;
+}
+
+.cached-video-card {
+  background: var(--surface-light);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 1.5rem;
+  transition: all 0.3s ease;
+}
+
+.cached-video-card:hover {
+  border-color: var(--primary);
+  box-shadow: 0 4px 16px rgba(255, 107, 53, 0.2);
+}
+
+.video-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 1rem;
+  padding-bottom: 1rem;
+  border-bottom: 1px solid var(--border);
+}
+
+.video-header h3 {
+  font-size: 1.3rem;
+  color: var(--text);
+  margin: 0;
+}
+
+.video-id {
+  font-size: 0.85rem;
+  color: var(--text-muted);
+  font-family: 'Courier New', monospace;
+  margin-bottom: 1rem;
+}
+
+.pipeline-status h4 {
+  font-size: 1rem;
+  color: var(--text-muted);
+  margin-bottom: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.status-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  gap: 0.75rem;
+  margin-bottom: 1rem;
+}
+
+.status-item {
+  background: var(--background);
+  padding: 0.75rem;
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  border: 1px solid var(--border);
+}
+
+.status-icon {
+  font-size: 1.2rem;
+}
+
+.btn-secondary {
+  padding: 0.5rem 1.5rem;
+  background: var(--secondary);
+  border: none;
+  border-radius: 8px;
+  color: white;
+  font-size: 0.9rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.3s ease;
+}
+
+.btn-secondary:hover {
+  background: #003d6b;
+  transform: translateY(-2px);
+}
+
+.btn-clear {
+  padding: 0.25rem 0.75rem;
+  background: rgba(255, 107, 53, 0.1);
+  border: 1px solid var(--primary);
+  border-radius: 6px;
+  color: var(--primary);
+  font-size: 0.75rem;
+  cursor: pointer;
+  margin-left: auto;
+  transition: all 0.2s ease;
+}
+
+.btn-clear:hover {
+  background: var(--primary);
+  color: white;
+}
+
+.btn-danger {
+  width: 100%;
+  padding: 0.75rem;
+  background: rgba(244, 67, 54, 0.1);
+  border: 1px solid #f44336;
+  border-radius: 8px;
+  color: #ff6b6b;
+  font-size: 0.9rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  margin-top: 1rem;
+}
+
+.btn-danger:hover {
+  background: #f44336;
+  color: white;
+}
+
+/* Pipeline Status Styles */
+.pipeline-status-container {
+  background: var(--surface);
+  border-radius: 12px;
+  padding: 1.5rem;
+  margin-bottom: 2rem;
+  border: 1px solid var(--border);
+  animation: fadeIn 0.3s ease;
+}
+
+.pipeline-status-container h3 {
+  font-size: 1.1rem;
+  color: var(--text-muted);
+  margin-bottom: 1rem;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.status-checkboxes {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1rem;
+  margin-bottom: 0.5rem;
+}
+
+.status-checkbox {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  background: var(--surface-light);
+  padding: 0.75rem 1rem;
+  border-radius: 8px;
+  border: 1px solid var(--border);
+  cursor: pointer;
+  transition: all 0.2s ease;
+  user-select: none;
+}
+
+.status-checkbox:hover {
+  border-color: var(--primary);
+  background: var(--background);
+}
+
+.status-checkbox.cached {
+  border-color: var(--success);
+  background: rgba(76, 175, 80, 0.05);
+}
+
+.status-checkbox input {
+  display: none;
+  /* Hide default checkbox */
+}
+
+.checkmark {
+  width: 20px;
+  height: 20px;
+  border: 2px solid var(--text-muted);
+  border-radius: 4px;
+  position: relative;
+  transition: all 0.2s ease;
+}
+
+.status-checkbox input:checked+.checkmark {
+  background: var(--success);
+  border-color: var(--success);
+}
+
+.checkmark:after {
+  content: "";
+  position: absolute;
+  display: none;
+  left: 6px;
+  top: 2px;
+  width: 5px;
+  height: 10px;
+  border: solid white;
+  border-width: 0 2px 2px 0;
+  transform: rotate(45deg);
+}
+
+.status-checkbox input:checked+.checkmark:after {
+  display: block;
+}
+
+.label-text {
+  font-weight: 500;
+  color: var(--text);
+}
+
+.status-tag {
+  font-size: 0.7rem;
+  padding: 0.2rem 0.5rem;
+  border-radius: 4px;
+  text-transform: uppercase;
+  font-weight: 700;
+}
+
+.status-tag.cached {
+  background: rgba(76, 175, 80, 0.2);
+  color: var(--success);
+}
+
+.status-tag.new {
+  background: rgba(255, 107, 53, 0.1);
+  color: var(--primary);
+}
+
+.status-hint {
+  font-size: 0.85rem;
+  color: var(--text-muted);
+  margin-top: 0.5rem;
+  font-style: italic;
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(-10px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* Print Styles for PDF Export */
+@media print {
+
+  /* Hide everything by default */
+  body * {
+    visibility: hidden;
+  }
+
+  /* Unhide the recipe container and its children */
+  .recipe-container,
+  .recipe-container * {
+    visibility: visible;
+  }
+
+  /* Position the recipe container at the top */
+  .recipe-container {
+    position: absolute;
+    left: 0;
+    top: 0;
+    width: 100%;
+    margin: 0;
+    padding: 0;
+    border: none;
+    box-shadow: none;
+    background: white;
+    /* Ensure white background for print */
+    color: black;
+    /* Ensure black text for print */
+  }
+
+  /* Hide specific elements explicitly */
+  .no-print,
+  header,
+  .url-input-container,
+  .pipeline-status-container,
+  .cache-view,
+  .error,
+  button {
+    display: none !important;
+  }
+
+  /* Ensure background graphics (colors, images) are printed */
+  * {
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
+
+  /* Adjust layout for print */
+  .app {
+    max-width: 100%;
+    padding: 0;
+    margin: 0;
+  }
+
+  /* Ensure images don't break across pages awkwardly */
+  img {
+    page-break-inside: avoid;
+  }
+
+  .instruction-item {
+    page-break-inside: avoid;
+    break-inside: avoid;
+    border: 1px solid #ddd;
+    /* Lighter border for print */
+  }
+
+  /* Fix text colors for print (dark mode text might be too light on white paper) */
+  .recipe-header h2,
+  .recipe-section h3,
+  .meta-item strong,
+  .ingredient-quantity,
+  .step-number {
+    color: #000 !important;
+    /* Force black/dark text */
+  }
+
+  .instruction-text,
+  .meta-item span,
+  .ingredient-item span {
+    color: #333 !important;
+  }
+
+  /* Remove dark mode backgrounds */
+  body,
+  .app,
+  .recipe-container,
+  .meta-item,
+  .ingredient-item,
+  .instruction-item {
+    background: white !important;
+    color: black !important;
+  }
+
+  /* Keep the hero layout */
+  .recipe-hero-layout {
+    display: flex !important;
+    flex-direction: row !important;
+  }
+}
+
+/* Cookbook View Styles */
+/* Side-by-side A4 pages layout */
+/* Cookbook View Styles */
+/* Side-by-side A4 pages layout */
+.cookbook-spread {
+  margin-top: 2rem;
+  display: flex;
+  gap: 0.5rem;
+  /* Pages closer together */
+  justify-content: center;
+  align-items: flex-start;
+  background: #f0f0f0;
+  /* Contrast background for the "table" */
+  padding: 2rem;
+  border-radius: 4px;
+}
+
+.cookbook-page-container {
+  /* A4 aspect ratio is 1:1.414 (210mm x 297mm) */
+  width: calc(50% - 0.25rem);
+  max-width: 600px;
+  aspect-ratio: 210 / 297;
+  position: relative;
+}
+
+.cookbook-page {
+  width: 100%;
+  height: 100%;
+  background: white;
+  /* White pages */
+  border-radius: 0;
+  /* No rounded corners */
+  border: 1px solid #ddd;
+  box-shadow:
+    /* Spine shadow */
+    inset 10px 0 20px -10px rgba(0, 0, 0, 0.1),
+    /* Page depth */
+    1px 1px 3px rgba(0, 0, 0, 0.1);
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
+/* Page 1: Hero Image + Description */
+.cookbook-page-1 {
+  padding: 0;
+  /* Right page shadow effect if it was on right, but it's left */
+  box-shadow:
+    /* Spine shadow on right side */
+    inset -10px 0 20px -10px rgba(0, 0, 0, 0.1),
+    /* Page depth */
+    -1px 1px 3px rgba(0, 0, 0, 0.1);
+}
+
+.cookbook-hero {
+  width: 100%;
+  height: 45%;
+  overflow: hidden;
+  border-bottom: 2px solid var(--primary);
+}
+
+.cookbook-hero-image {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.cookbook-hero-placeholder {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: linear-gradient(135deg, #f8f8f8, #fff);
+  font-size: 4rem;
+}
+
+.cookbook-page-1-content {
+  padding: 2rem 2.5rem;
+  /* Book margins */
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  overflow: hidden;
+}
+
+.cookbook-title {
+  font-size: 1.5rem;
+  font-weight: 800;
+  color: black;
+  margin-bottom: 0.5rem;
+  line-height: 1.2;
+  font-family: 'Georgia', serif;
+}
+
+.cookbook-meta-badges {
+  display: flex;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+  margin-bottom: 0.75rem;
+}
+
+.cookbook-badge {
+  background: white;
+  padding: 0.4rem 0.8rem;
+  border-radius: 0;
+  border: 1px solid #ccc;
+  font-size: 0.75rem;
+}
+
+.cookbook-badge strong {
+  color: var(--primary);
+  margin-right: 0.25rem;
+}
+
+.cookbook-description {
+  font-size: 0.75rem;
+  /* Reduced from 0.9rem */
+  line-height: 1.4;
+  /* Reduced from 1.6 */
+  color: black;
+  /* Ensure high contrast */
+  margin-bottom: 0.75rem;
+  padding: 0;
+  background: transparent;
+  border: none;
+  border-radius: 0;
+  font-style: normal;
+  font-family: 'Georgia', serif;
+  overflow: hidden;
+  text-align: justify;
+}
+
+.cookbook-timing-details {
+  display: flex;
+  gap: 1rem;
+  padding-top: 0.75rem;
+  border-top: 1px solid #eee;
+  margin-top: auto;
+  /* Push to bottom */
+}
+
+.timing-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  flex: 1;
+}
+
+.timing-label {
+  font-size: 0.65rem;
+  color: #666;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  margin-bottom: 0.25rem;
+}
+
+.timing-value {
+  font-size: 0.9rem;
+  font-weight: 700;
+  color: black;
+}
+
+/* Page 2: Two Column Layout */
+.cookbook-page-2 {
+  background: white;
+  padding: 1rem 1.5rem;
+  /* Further reduced margins */
+  border-radius: 0;
+  border: 1px solid #ddd;
+  overflow: hidden;
+  /* Spine shadow on left side */
+  box-shadow:
+    inset 10px 0 20px -10px rgba(0, 0, 0, 0.1),
+    1px 1px 3px rgba(0, 0, 0, 0.1);
+}
+
+.cookbook-two-column {
+  display: grid;
+  grid-template-columns: 0.85fr 1.5fr;
+  gap: 1rem;
+  /* Reduced column gap */
+  height: 100%;
+}
+
+.cookbook-column {
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  width: 100%;
+}
+
+.cookbook-section-title {
+  font-size: 0.6rem !important;
+  /* Drastically reduced and forced */
+  font-weight: 700;
+  color: black !important;
+  /* Force black */
+  margin-bottom: 0.2rem;
+  padding-bottom: 0.15rem;
+  border-bottom: 2px solid black;
+  font-family: 'Georgia', serif;
+  width: 100%;
+}
+
+.cookbook-servings-subheader {
+  font-size: 0.7rem;
+  font-style: italic;
+  color: black;
+  margin-bottom: 0.4rem;
+  font-family: 'Georgia', serif;
+}
+
+/* Cookbook Ingredients */
+.cookbook-ingredients {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.1rem;
+  /* Minimal gap */
+}
+
+.cookbook-ingredient-item {
+  padding: 0.05rem 0;
+  /* Minimal padding */
+  line-height: 1.1;
+  /* Very tight line height */
+  font-size: 0.6rem;
+  /* Small font */
+  color: black !important;
+  /* Force black */
+  border-bottom: 1px dashed #eee;
+}
+
+.ingredient-text {
+  color: black !important;
+  /* Force black */
+  font-weight: 400;
+}
+
+.ingredient-text strong {
+  color: black !important;
+  /* Force black */
+  font-weight: 700;
+  margin-right: 0.2rem;
+}
+
+/* Cookbook Instructions */
+.cookbook-instructions {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+  /* Minimal gap */
+  overflow-y: hidden;
+}
+
+.cookbook-instruction-item {
+  position: relative;
+  padding-left: 1.1rem;
+  font-size: 0.6rem;
+  /* Small font for 24 steps */
+  line-height: 1.15;
+  /* Very tight line height */
+  color: black !important;
+  /* Force black */
+  font-weight: 400;
+  text-align: justify;
+  margin-bottom: 0;
+}
+
+.cookbook-instruction-item::before {
+  content: counter(list-item);
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 12px;
+  height: 12px;
+  background: black;
+  color: white;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 700;
+  font-size: 0.45rem;
+  margin-top: 1px;
+}
+
+.instruction-text {
+  color: black !important;
+  /* Force black */
+  margin: 0;
+}
+
+.instruction-category {
+  display: inline-block;
+  background: var(--background);
+  padding: 0.1rem 0.4rem;
+  border-radius: 3px;
+  font-size: 0.6rem;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.3px;
+  margin-bottom: 0.15rem;
+}
+
+.instruction-text {
+  color: var(--text);
+  margin: 0;
+}
+
+/* Enhanced Print Styles for Cookbook View */
+@media print {
+
+  /* A4 page sizing */
+  @page {
+    size: A4;
+    margin: 15mm;
+  }
+
+  body {
+    background: white !important;
+    color: black !important;
+  }
+
+  /* Hide everything not in cookbook view */
+  .app>*:not(.recipe-container) {
+    display: none !important;
+  }
+
+  .recipe-container {
+    background: white !important;
+    color: black !important;
+    box-shadow: none !important;
+    border: none !important;
+    padding: 0 !important;
+    margin: 0 !important;
+  }
+
+  /* Page 1 Styles */
+  .cookbook-page-1 {
+    page-break-after: always;
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+  }
+
+  .cookbook-hero {
+    width: 100%;
+    height: 60vh;
+    border-radius: 0;
+    border: none;
+    box-shadow: none;
+  }
+
+  .cookbook-hero-image {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+  }
+
+  .cookbook-page-1-content {
+    padding: 0;
+    flex: 1;
+  }
+
+  .cookbook-title {
+    font-size: 2.5rem;
+    color: #000 !important;
+    margin-top: 1.5rem;
+    margin-bottom: 1rem;
+  }
+
+  .cookbook-meta-badges {
+    background: none !important;
+    border: none !important;
+    gap: 1rem;
+    margin-bottom: 1.5rem;
+  }
+
+  .cookbook-badge {
+    background: #f5f5f5 !important;
+    border: 1px solid #ddd !important;
+    color: #000 !important;
+  }
+
+  .cookbook-badge strong {
+    color: #333 !important;
+  }
+
+  .cookbook-description {
+    background: #f9f9f9 !important;
+    border-left-color: #333 !important;
+    color: #000 !important;
+    font-size: 1.1rem;
+    padding: 1rem;
+    margin-bottom: 1.5rem;
+  }
+
+  .cookbook-timing-details {
+    border-top-color: #ddd !important;
+    padding-top: 1rem;
+  }
+
+  .timing-label {
+    color: #666 !important;
+  }
+
+  .timing-value {
+    color: #000 !important;
+  }
+
+  /* Page 2 Styles - Fit to one page */
+  .cookbook-page-2 {
+    page-break-before: always;
+    page-break-after: avoid;
+    background: white !important;
+    padding: 0 !important;
+    border: none !important;
+    margin: 0 !important;
+  }
+
+  .cookbook-two-column {
+    display: grid !important;
+    grid-template-columns: 1fr 1.8fr !important;
+    gap: 2rem !important;
+  }
+
+  .cookbook-section-title {
+    color: #000 !important;
+    font-size: 1.5rem !important;
+    margin-bottom: 1rem !important;
+    border-bottom-color: #333 !important;
+  }
+
+  /* Compact ingredients for print */
+  .cookbook-ingredients {
+    gap: 0.3rem !important;
+  }
+
+  .cookbook-ingredient-item {
+    padding: 0.3rem 0 !important;
+    font-size: 0.85rem !important;
+  }
+
+  .ingredient-qty {
+    color: #333 !important;
+    min-width: 70px !important;
+  }
+
+  .ingredient-name {
+    color: #000 !important;
+  }
+
+  /* Compact instructions for print */
+  .cookbook-instructions {
+    gap: 0.6rem !important;
+  }
+
+  .cookbook-instruction-item {
+    padding-left: 2.2rem !important;
+    font-size: 0.85rem !important;
+    line-height: 1.5 !important;
+    page-break-inside: avoid !important;
+  }
+
+  .cookbook-instruction-item::before {
+    width: 28px !important;
+    height: 28px !important;
+    background: #333 !important;
+    font-size: 0.8rem !important;
+  }
+
+  .instruction-category {
+    background: #f0f0f0 !important;
+    color: #666 !important;
+    font-size: 0.7rem !important;
+    padding: 0.15rem 0.5rem !important;
+  }
+
+  .instruction-text {
+    color: #000 !important;
+  }
+
+  /* Ensure no page breaks in middle of items */
+  .cookbook-ingredient-item,
+  .cookbook-instruction-item {
+    page-break-inside: avoid !important;
+  }
+
+  /* Hide standard view in print when in cookbook mode */
+  .recipe-header,
+  .recipe-section {
+    display: none !important;
+  }
+}
+
+/* Active button state for view toggle */
+.btn-secondary.active {
+  background: var(--primary) !important;
+  border-color: var(--primary) !important;
+}
+
+/* Pizza Tracker Styles */
+.pizza-tracker-container {
+  background: white;
+  padding: 2rem;
+  border-radius: 12px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+  margin: 2rem 0;
+  text-align: center;
+}
+
+.pizza-tracker-container h3 {
+  margin-top: 0;
+  margin-bottom: 2rem;
+  color: var(--primary);
+}
+
+.pizza-tracker-steps {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  position: relative;
+  max-width: 800px;
+  margin: 0 auto;
+}
+
+.tracker-step {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  position: relative;
+  z-index: 2;
+  flex: 1;
+}
+
+.step-icon-circle {
+  width: 50px;
+  height: 50px;
+  border-radius: 50%;
+  background: var(--surface);
+  border: 2px solid var(--border);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.5rem;
+  margin-bottom: 0.5rem;
+  transition: all 0.3s ease;
+  color: var(--text-muted);
+}
+
+.tracker-step.active .step-icon-circle {
+  border-color: var(--primary);
+  color: var(--primary);
+  background: white;
+  box-shadow: 0 0 0 4px rgba(255, 107, 107, 0.2);
+  animation: pulse 1.5s infinite;
+}
+
+.tracker-step.completed .step-icon-circle {
+  background: var(--success);
+  border-color: var(--success);
+  color: white;
+}
+
+.step-label {
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--text-muted);
+  transition: color 0.3s ease;
+}
+
+.tracker-step.active .step-label {
+  color: var(--primary);
+}
+
+.tracker-step.completed .step-label {
+  color: var(--success);
+}
+
+.step-connector {
+  position: absolute;
+  top: 25px;
+  left: 50%;
+  width: 100%;
+  height: 3px;
+  background: var(--border);
+  z-index: 1;
+  transform: translateY(-50%);
+}
+
+.step-connector.completed {
+  background: var(--success);
+  transition: background 0.5s ease;
+}
+
+.tracker-status-text {
+  margin-top: 2rem;
+  font-size: 1.1rem;
+  color: var(--text);
+}
+
+@keyframes pulse {
+  0% {
+    box-shadow: 0 0 0 0 rgba(255, 107, 107, 0.4);
+  }
+
+  70% {
+    box-shadow: 0 0 0 10px rgba(255, 107, 107, 0);
+  }
+
+  100% {
+    box-shadow: 0 0 0 0 rgba(255, 107, 107, 0);
+  }
+}
