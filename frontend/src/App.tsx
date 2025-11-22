@@ -14,10 +14,13 @@ export interface Recipe {
   total_time: string;
   difficulty: string;
   description: string;
+  channel_name?: string;
+  video_url?: string;
   ingredients: {
     quantity: string;
     unit: string;
     ingredient: string;
+    purpose?: string;
   }[];
   instructions: {
     step_number: number;
@@ -166,7 +169,7 @@ function App() {
           >
             ← Back to Cache / Search
           </button>
-          <RecipeView recipe={recipe} visuals={visuals} loading={loading} />
+          <RecipeView recipe={recipe} visuals={visuals} />
         </div>
       )}
     </div>

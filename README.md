@@ -179,6 +179,7 @@ recipe_extract/
 
 - **Backend**: Follow FastAPI best practices and add type hints
 - **Frontend**: Use TypeScript for all components and maintain consistent styling
+- **AI Prompts**: All AI prompts must be stored in external files (see [docs/development.md](docs/development.md))
 - **Testing**: Test both individual components and end-to-end workflows
 - **Documentation**: Update documentation for any new features
 

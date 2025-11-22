@@ -5,6 +5,12 @@ from pydantic import BaseModel
 import os
 from typing import Optional
 import io
+from dotenv import load_dotenv
+
+# Load environment variables from .env file if it exists
+import os
+if os.path.exists('.env'):
+    load_dotenv()
 
 from services import (
     get_video_metadata,
@@ -60,7 +66,12 @@ async def extract_recipe(request: RecipeRequest):
         
         # Extract recipe using Gemini
         recipe = extract_recipe_gemini(input_data, request.url)
-        
+
+        # Add video URL and channel info to recipe data
+        recipe["video_url"] = request.url
+        if metadata.get("channel_name"):
+            recipe["channel_name"] = metadata.get("channel_name")
+
         return recipe
         
     except Exception as e:
@@ -69,36 +80,35 @@ async def extract_recipe(request: RecipeRequest):
 
 @app.post("/api/visuals")
 async def extract_visuals(request: VisualsRequest):
-    """Extract timestamps and best frames for key steps"""
+    """Extract timestamps and best frame for dish visual"""
     try:
         video_id = request.url.split("v=")[-1].split("&")[0]
-        
-        # Get timestamps from Gemini
+
+        # Get timestamps from Gemini (still gets all steps for analysis)
         timestamps = extract_timestamps_gemini(request.url, request.key_steps)
-        
-        # For each timestamp, extract best frame using Gemini Vision
+
+        # Only extract frame for dish_visual
         results = {}
-        for step_num, timestamp in timestamps.items():
-            if timestamp and timestamp != "null":
-                # Extract frame
-                best_frame_data = extract_best_frame(
-                    request.url,
-                    timestamp,
-                    request.key_steps.get(step_num, ""),
-                    step_num  # Pass step number for caching
-                )
-                results[step_num] = {
-                    "timestamp": timestamp,
-                    "frame_base64": best_frame_data
-                }
-            else:
-                results[step_num] = {
-                    "timestamp": None,
-                    "frame_base64": None
-                }
-        
+        if "dish_visual" in timestamps and timestamps["dish_visual"] and timestamps["dish_visual"] != "null":
+            # Extract frame for dish_visual
+            best_frame_data = extract_best_frame(
+                request.url,
+                timestamps["dish_visual"],
+                "Completed dish visual representation",
+                "dish_visual"  # Pass step number for caching
+            )
+            results["dish_visual"] = {
+                "timestamp": timestamps["dish_visual"],
+                "frame_base64": best_frame_data
+            }
+        else:
+            results["dish_visual"] = {
+                "timestamp": None,
+                "frame_base64": None
+            }
+
         return results
-        
+
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
@@ -138,7 +148,12 @@ async def get_cached_recipe(video_id: str):
         
         if not recipe:
             raise HTTPException(status_code=404, detail="Recipe not found in cache")
-        
+
+        # Add video URL and channel info to cached recipe data for compatibility
+        recipe["video_url"] = f"https://www.youtube.com/watch?v={video_id}"
+        if metadata and metadata.get("channel_name"):
+            recipe["channel_name"] = metadata.get("channel_name")
+
         return {
             "video_id": video_id,
             "metadata": metadata,
