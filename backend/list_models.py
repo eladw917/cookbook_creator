@@ -4,7 +4,9 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
-api_key = os.getenv("GEMINI_API_KEY", "AIzaSyDiJYTpzKju9L10o9_D3jYCmE8wqCW6vY0")
+api_key = os.getenv("GEMINI_API_KEY")
+if not api_key:
+    raise ValueError("GEMINI_API_KEY environment variable is required")
 genai.configure(api_key=api_key)
 
 print(f"Using API Key: {api_key[:5]}...{api_key[-5:]}")

@@ -50,3 +50,35 @@ backend/cache/
 # Test files
 test_video.mp4
 test_video.mp4.ytdl
+
+# Frontend build outputs
+frontend/dist/
+frontend/build/
+
+# Environment files
+.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+
+# Temporary files
+*.tmp
+*.temp
+.cache/
+
+# Coverage reports
+.coverage
+htmlcov/
+coverage.xml
+*.cover
+
+# Jupyter Notebook checkpoints
+.ipynb_checkpoints
+
+# Cursor IDE
+.cursor/
+
+# Log files (additional patterns)
+logs/
+*.log.*

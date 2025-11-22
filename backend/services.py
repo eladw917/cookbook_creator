@@ -12,7 +12,9 @@ from google.genai import types
 import cache_manager
 
 # Initialize Gemini client
-api_key = os.getenv("GEMINI_API_KEY", "AIzaSyDiJYTpzKju9L10o9_D3jYCmE8wqCW6vY0")
+api_key = os.getenv("GEMINI_API_KEY")
+if not api_key:
+    raise ValueError("GEMINI_API_KEY environment variable is required")
 client = genai.Client(api_key=api_key)
 
 
