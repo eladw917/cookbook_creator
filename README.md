@@ -140,6 +140,10 @@ When the backend is running, visit:
 #### Backend
 - `GEMINI_API_KEY`: Your Google Gemini API key (required)
 - `YOUTUBE_API_KEY`: YouTube API key (optional, for enhanced metadata)
+- `CORS_ORIGINS`: Comma-separated list of allowed CORS origins (default: `http://localhost:5173`)
+
+#### Frontend
+- `VITE_API_BASE_URL`: Backend API base URL (default: `http://localhost:8000`)
 
 ### Ports
 - **Backend API**: 8000

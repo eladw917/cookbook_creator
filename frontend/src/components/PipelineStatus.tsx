@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import config from '../config';
 
 interface PipelineStatusProps {
     videoId: string;
@@ -28,7 +29,7 @@ const PipelineStatus: React.FC<PipelineStatusProps> = ({ videoId, onStatusChange
     const fetchStatus = async () => {
         setLoading(true);
         try {
-            const response = await fetch(`http://localhost:8000/api/cache/${videoId}/status`);
+            const response = await fetch(`${config.API_BASE_URL}/api/cache/${videoId}/status`);
             if (response.ok) {
                 const data = await response.json();
                 setStatus(data);
@@ -62,7 +63,7 @@ const PipelineStatus: React.FC<PipelineStatusProps> = ({ videoId, onStatusChange
         if (status[stepName]) {
             // If checked (cached), unchecking means clearing cache
             try {
-                await fetch(`http://localhost:8000/api/cache/${videoId}/${stepName}`, {
+                await fetch(`${config.API_BASE_URL}/api/cache/${videoId}/${stepName}`, {
                     method: 'DELETE',
                 });
                 // Refresh status

@@ -23,9 +23,13 @@ from services import (
 app = FastAPI(title="Recipe Extract API")
 
 # CORS middleware for frontend
+# Allow origins from environment variable, default to localhost for development
+cors_origins = os.getenv("CORS_ORIGINS", "http://localhost:5173").split(",")
+cors_origins = [origin.strip() for origin in cors_origins]  # Remove whitespace
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:5173"],  # Vite default port
+    allow_origins=cors_origins,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
