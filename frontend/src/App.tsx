@@ -5,6 +5,7 @@ import RecipeView from './components/RecipeView'
 import CacheView from './components/CacheView'
 import PipelineStatus from './components/PipelineStatus'
 import PizzaTracker from './components/PizzaTracker'
+import config from './config'
 
 export interface Recipe {
   title: string;
@@ -78,7 +79,7 @@ function App() {
 
     try {
       // Step 1: Extract recipe
-      const recipeResponse = await fetch('http://localhost:8000/api/recipe', {
+      const recipeResponse = await fetch(`${config.API_BASE_URL}/api/recipe`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -101,7 +102,7 @@ function App() {
         }
       })
 
-      const visualsResponse = await fetch('http://localhost:8000/api/visuals', {
+      const visualsResponse = await fetch(`${config.API_BASE_URL}/api/visuals`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

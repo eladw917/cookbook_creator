@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import config from '../config';
 
 interface PizzaTrackerProps {
     videoId: string;
@@ -33,7 +34,7 @@ const PizzaTracker: React.FC<PizzaTrackerProps> = ({ videoId }) => {
 
     const fetchStatus = async () => {
         try {
-            const response = await fetch(`http://localhost:8000/api/cache/${videoId}/status`);
+            const response = await fetch(`${config.API_BASE_URL}/api/cache/${videoId}/status`);
             if (response.ok) {
                 const data = await response.json();
                 setStatus(data);

@@ -4,7 +4,8 @@ from pathlib import Path
 from typing import Optional, Dict, Any
 
 # Base directory for storing video processing data
-CACHE_DIR = Path("/Users/eladweller/receipe_extract/backend/cache")
+# Use relative path from the backend directory
+CACHE_DIR = Path(__file__).parent / "cache"
 
 
 def get_video_cache_dir(video_id: str) -> Path:
