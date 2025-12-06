@@ -202,7 +202,32 @@ function App() {
       const recipeData = await recipeResponse.json()
       setRecipe(recipeData)
 
-      // Start checking for PDF after recipe extraction
+      // Step 2: Extract visuals (dish_visual hero image) and trigger PDF generation
+      const keySteps: { [key: string]: string } = {}
+      recipeData.instructions.forEach((step: any) => {
+        if (step.is_key_step) {
+          keySteps[step.step_number.toString()] = step.instruction
+        }
+      })
+
+      const visualsResponse = await fetch(
+        `${config.API_BASE_URL}/api/visuals`,
+        {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({ url: submitUrl, key_steps: keySteps }),
+        }
+      )
+
+      if (!visualsResponse.ok) {
+        throw new Error('Failed to extract visuals')
+      }
+
+      await visualsResponse.json()
+
+      // Start checking for PDF after visuals extraction (which triggers PDF generation)
       if (videoId) {
         checkPdfStatus(videoId)
       }
