@@ -254,50 +254,58 @@ def timestamp_to_seconds(timestamp: str) -> float:
 
 
 def extract_frame_at_time(video_url: str, timestamp_seconds: float) -> bytes:
-    """Extract a single frame at specific timestamp using ffmpeg"""
+    """
+    Extract a single frame at specific timestamp using yt-dlp + ffmpeg.
+    This method doesn't download the entire video - it gets the direct stream URL
+    and uses ffmpeg to seek to the exact timestamp, which is much more efficient.
+    """
     print(f"DEBUG: Extracting frame at {timestamp_seconds}s...")
+    
     # Convert seconds to HH:MM:SS format for ffmpeg
     hours = int(timestamp_seconds // 3600)
     minutes = int((timestamp_seconds % 3600) // 60)
     seconds = int(timestamp_seconds % 60)
     timestamp_str = f"{hours:02d}:{minutes:02d}:{seconds:02d}"
 
-    # Download video once (best MP4) then seek locally — mirrors the working notebook flow
     tmp_dir = tempfile.mkdtemp(prefix="frame_extract_")
-    video_path = os.path.join(tmp_dir, "video.%(ext)s")
     frame_path = os.path.join(tmp_dir, "frame.jpg")
 
     try:
-        # Download the video (best mp4 or best available)
+        # Step 1: Get direct video URL using yt-dlp (without downloading)
+        print("DEBUG: Getting direct video URL from yt-dlp...")
         ydl_opts = {
             "format": 'bestvideo[ext=mp4]/best[ext=mp4]/best',
-            "outtmpl": video_path,
             "quiet": True,
             "no_warnings": True,
+            # Add options to bypass YouTube restrictions
+            "http_headers": {
+                "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+                "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
+                "Accept-Language": "en-us,en;q=0.5",
+                "Sec-Fetch-Mode": "navigate",
+            },
+            "source_address": "0.0.0.0",
+            "retries": 10,
+            "fragment_retries": 10,
+            "extractor_args": {"youtube": {"player_client": ["android", "web"]}},
         }
 
-        print("DEBUG: Downloading video for frame extraction...")
         with yt_dlp.YoutubeDL(ydl_opts) as ydl:
-            info = ydl.extract_info(video_url, download=True)
-            ext = info.get("ext", "mp4")
-            downloaded_path = video_path.replace("%(ext)s", ext)
+            info = ydl.extract_info(video_url, download=False)
+            # Get the direct video stream URL
+            direct_url = info['url']
+        
+        print(f"DEBUG: Got direct URL, extracting frame at {timestamp_str}...")
 
-        if not os.path.exists(downloaded_path):
-            raise Exception("Video download failed; file not found")
-
-        # Extract the frame locally
-        print("DEBUG: Running ffmpeg on downloaded video...")
+        # Step 2: Use ffmpeg to extract frame directly from the stream URL
+        # Using -ss before -i for faster seeking
         ffmpeg_cmd = [
             "ffmpeg",
-            "-ss",
-            timestamp_str,
-            "-i",
-            downloaded_path,
-            "-frames:v",
-            "1",
-            "-q:v",
-            "2",
-            "-y",
+            "-ss", timestamp_str,          # Seek before input (faster)
+            "-i", direct_url,               # Direct stream URL
+            "-frames:v", "1",               # Extract 1 frame
+            "-q:v", "2",                    # High quality
+            "-y",                           # Overwrite output
             frame_path,
         ]
 
@@ -305,20 +313,22 @@ def extract_frame_at_time(video_url: str, timestamp_seconds: float) -> bytes:
             ffmpeg_cmd,
             capture_output=True,
             text=True,
-            timeout=90,
+            timeout=30,  # Shorter timeout since we're not downloading entire video
         )
 
         if result.returncode != 0:
-            print(f"DEBUG: ffmpeg failed: {result.stderr[-500:]}")
-            raise Exception("ffmpeg failed to extract frame")
+            # Check for common errors
+            stderr_tail = result.stderr[-500:] if result.stderr else ""
+            print(f"DEBUG: ffmpeg failed: {stderr_tail}")
+            raise Exception(f"ffmpeg failed to extract frame: {stderr_tail}")
 
-        if os.path.exists(frame_path):
+        if os.path.exists(frame_path) and os.path.getsize(frame_path) > 0:
             file_size = os.path.getsize(frame_path)
             print(f"DEBUG: Frame extracted successfully ({file_size} bytes)")
             with open(frame_path, "rb") as f:
                 return f.read()
 
-        raise Exception("Frame file was not created")
+        raise Exception("Frame file was not created or is empty")
 
     except subprocess.TimeoutExpired:
         print("DEBUG: ffmpeg command timed out")
@@ -331,15 +341,10 @@ def extract_frame_at_time(video_url: str, timestamp_seconds: float) -> bytes:
         try:
             if os.path.exists(frame_path):
                 os.remove(frame_path)
-            # Remove downloaded video(s)
-            for file in os.listdir(tmp_dir):
-                try:
-                    os.remove(os.path.join(tmp_dir, file))
-                except Exception:
-                    pass
-            os.rmdir(tmp_dir)
-        except Exception:
-            pass
+            if os.path.exists(tmp_dir):
+                os.rmdir(tmp_dir)
+        except Exception as cleanup_error:
+            print(f"DEBUG: Cleanup warning: {cleanup_error}")
 
 
 def extract_best_frame(video_url: str, timestamp: str, step_instruction: str, step_number: str) -> str:

@@ -84,34 +84,37 @@ async def extract_recipe(request: RecipeRequest):
 
 @app.post("/api/visuals")
 async def extract_visuals(request: VisualsRequest):
-    """Extract timestamps and best frame for dish visual"""
+    """Extract timestamps and best frame for dish visual only"""
     try:
         video_id = request.url.split("v=")[-1].split("&")[0]
 
-        # Get timestamps from Gemini (still gets all steps for analysis)
+        # Get timestamps from Gemini (analyzes video to find key moments)
         timestamps = extract_timestamps_gemini(request.url, request.key_steps)
 
-        # Extract frames for key steps + dish_visual
+        # Only extract the dish_visual frame (hero image)
+        # Skip extracting individual step frames to save time and bandwidth
         results = {}
+        
+        # Return timestamps for all steps (for future reference)
         for step_key, ts in timestamps.items():
-            if ts and ts != "null":
-                # Use provided instruction when available for context
-                instruction = request.key_steps.get(step_key, "Visual reference")
-                best_frame_data = extract_best_frame(
-                    request.url,
-                    ts,
-                    instruction,
-                    step_key  # cache key
-                )
-                results[step_key] = {
-                    "timestamp": ts,
-                    "frame_base64": best_frame_data
-                }
-            else:
-                results[step_key] = {
-                    "timestamp": None,
-                    "frame_base64": None
-                }
+            results[step_key] = {
+                "timestamp": ts,
+                "frame_base64": None  # Don't extract frames for individual steps
+            }
+        
+        # Extract ONLY the dish_visual frame
+        if "dish_visual" in timestamps and timestamps["dish_visual"] and timestamps["dish_visual"] != "null":
+            print("DEBUG: Extracting dish_visual frame only...")
+            best_frame_data = extract_best_frame(
+                request.url,
+                timestamps["dish_visual"],
+                "Visual reference",
+                "dish_visual"  # cache key
+            )
+            results["dish_visual"] = {
+                "timestamp": timestamps["dish_visual"],
+                "frame_base64": best_frame_data
+            }
 
         return results
 

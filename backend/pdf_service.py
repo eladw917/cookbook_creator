@@ -26,6 +26,34 @@ def get_hero_image_data_uri(video_id: str) -> Optional[str]:
     return None
 
 
+def get_step_images_data_uris(video_id: str) -> dict:
+    """
+    Load all step frames and convert to data URIs.
+    Note: Currently we only extract dish_visual, not individual step images.
+    This function is kept for future compatibility if step images are re-enabled.
+    """
+    step_images = {}
+    video_dir = cache_manager.get_video_cache_dir(video_id)
+    frames_dir = video_dir / "frames"
+    
+    if not frames_dir.exists():
+        return step_images
+    
+    # Get all step frame files (excluding dish_visual)
+    for frame_file in frames_dir.glob("step_*.jpg"):
+        # Skip dish_visual as it's used for hero image
+        if frame_file.stem == "step_dish_visual":
+            continue
+            
+        step_key = frame_file.stem.replace("step_", "")  # e.g., "12", "14", etc.
+        frame_data = cache_manager.load_frame(video_id, step_key)
+        if frame_data:
+            base64_data = base64.b64encode(frame_data).decode('utf-8')
+            step_images[step_key] = f"data:image/jpeg;base64,{base64_data}"
+    
+    return step_images
+
+
 async def generate_recipe_pdf(video_id: str) -> bytes:
     """
     Generate a PDF for a recipe using cached data.
@@ -52,12 +80,16 @@ async def generate_recipe_pdf(video_id: str) -> bytes:
     # Get hero image as data URI
     hero_image = get_hero_image_data_uri(video_id)
     
+    # Get step images as data URIs
+    step_images = get_step_images_data_uris(video_id)
+    
     # Render HTML template
     template = jinja_env.get_template("recipe.html")
     html_content = template.render(
         recipe=recipe,
         metadata=metadata,
-        hero_image=hero_image
+        hero_image=hero_image,
+        step_images=step_images
     )
     
     print("DEBUG: Rendered HTML template")
