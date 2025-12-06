@@ -18,7 +18,8 @@
 }
 
 body {
-  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI',
+    sans-serif;
   background: var(--background);
   color: var(--text);
   line-height: 1.6;
@@ -214,7 +215,11 @@ header p {
 
 .instruction-item.key-step {
   border-color: var(--primary);
-  background: linear-gradient(135deg, var(--surface-light), rgba(255, 107, 53, 0.05));
+  background: linear-gradient(
+    135deg,
+    var(--surface-light),
+    rgba(255, 107, 53, 0.05)
+  );
 }
 
 .instruction-header {
@@ -379,6 +384,24 @@ header p {
   font-size: 1.2rem;
 }
 
+.btn-primary {
+  padding: 0.5rem 1.5rem;
+  background: linear-gradient(135deg, var(--primary), var(--primary-dark));
+  border: none;
+  border-radius: 8px;
+  color: white;
+  font-size: 0.9rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  box-shadow: 0 2px 8px rgba(255, 107, 53, 0.3);
+}
+
+.btn-primary:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 16px rgba(255, 107, 53, 0.4);
+}
+
 .btn-secondary {
   padding: 0.5rem 1.5rem;
   background: var(--secondary);
@@ -494,13 +517,13 @@ header p {
   transition: all 0.2s ease;
 }
 
-.status-checkbox input:checked+.checkmark {
+.status-checkbox input:checked + .checkmark {
   background: var(--success);
   border-color: var(--success);
 }
 
 .checkmark:after {
-  content: "";
+  content: '';
   position: absolute;
   display: none;
   left: 6px;
@@ -512,7 +535,7 @@ header p {
   transform: rotate(45deg);
 }
 
-.status-checkbox input:checked+.checkmark:after {
+.status-checkbox input:checked + .checkmark:after {
   display: block;
 }
 
@@ -560,7 +583,6 @@ header p {
 
 /* Print Styles for PDF Export */
 
-
 /* Cookbook View Styles */
 /* Side-by-side A4 pages layout */
 /* Cookbook View Styles */
@@ -595,10 +617,8 @@ header p {
   /* No rounded corners */
   border: 1px solid #ddd;
   box-shadow:
-    /* Spine shadow */
-    inset 10px 0 20px -10px rgba(0, 0, 0, 0.1),
-    /* Page depth */
-    1px 1px 3px rgba(0, 0, 0, 0.1);
+    /* Spine shadow */ inset 10px 0 20px -10px rgba(0, 0, 0, 0.1),
+    /* Page depth */ 1px 1px 3px rgba(0, 0, 0, 0.1);
   overflow: hidden;
   display: flex;
   flex-direction: column;
@@ -609,10 +629,9 @@ header p {
   padding: 0;
   /* Right page shadow effect if it was on right, but it's left */
   box-shadow:
-    /* Spine shadow on right side */
-    inset -10px 0 20px -10px rgba(0, 0, 0, 0.1),
-    /* Page depth */
-    -1px 1px 3px rgba(0, 0, 0, 0.1);
+    /* Spine shadow on right side */ inset -10px 0 20px -10px
+      rgba(0, 0, 0, 0.1),
+    /* Page depth */ -1px 1px 3px rgba(0, 0, 0, 0.1);
 }
 
 .cookbook-hero {
@@ -760,8 +779,7 @@ header p {
   border: 1px solid #ddd;
   overflow: hidden;
   /* Spine shadow on left side */
-  box-shadow:
-    inset 10px 0 20px -10px rgba(0, 0, 0, 0.1),
+  box-shadow: inset 10px 0 20px -10px rgba(0, 0, 0, 0.1),
     1px 1px 3px rgba(0, 0, 0, 0.1);
 }
 
@@ -905,7 +923,6 @@ header p {
 }
 
 /* Enhanced Print Styles for Cookbook View */
-
 
 /* Active button state for view toggle */
 .btn-secondary.active {

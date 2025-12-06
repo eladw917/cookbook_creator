@@ -1,6 +1,6 @@
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, Query
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import StreamingResponse
+from fastapi.responses import StreamingResponse, Response
 from pydantic import BaseModel
 import os
 from typing import Optional
@@ -197,6 +197,45 @@ async def clear_cache_step(video_id: str, step_name: str):
         return {"message": f"Cleared {step_name} for video {video_id}"}
     except HTTPException:
         raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.get("/api/cache/{video_id}/pdf")
+async def download_recipe_pdf(
+    video_id: str, 
+    regenerate: bool = Query(False, description="Force regenerate PDF even if cached")
+):
+    """
+    Generate and download a PDF of the recipe.
+    Uses cached PDF if available unless regenerate=true.
+    """
+    import pdf_service
+    try:
+        # Generate or load PDF
+        pdf_bytes = await pdf_service.generate_or_load_pdf(video_id, force_regenerate=regenerate)
+        
+        # Get recipe title for filename
+        import cache_manager
+        recipe = cache_manager.load_step(video_id, "recipe")
+        title = recipe.get("title", "recipe") if recipe else "recipe"
+        
+        # Sanitize filename
+        safe_title = "".join(c for c in title if c.isalnum() or c in (' ', '-', '_')).strip()
+        safe_title = safe_title.replace(' ', '_')
+        filename = f"{safe_title}.pdf"
+        
+        # Return PDF with proper headers
+        return Response(
+            content=pdf_bytes,
+            media_type="application/pdf",
+            headers={
+                "Content-Disposition": f"attachment; filename={filename}"
+            }
+        )
+        
+    except ValueError as e:
+        raise HTTPException(status_code=404, detail=str(e))
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 

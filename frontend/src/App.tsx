@@ -8,34 +8,34 @@ import PizzaTracker from './components/PizzaTracker'
 import config from './config'
 
 export interface Recipe {
-  title: string;
-  servings: string;
-  prep_time: string;
-  cook_time: string;
-  total_time: string;
-  difficulty: string;
-  description: string;
-  channel_name?: string;
-  video_url?: string;
+  title: string
+  servings: string
+  prep_time: string
+  cook_time: string
+  total_time: string
+  difficulty: string
+  description: string
+  channel_name?: string
+  video_url?: string
   ingredients: {
-    quantity: string;
-    unit: string;
-    ingredient: string;
-    purpose?: string;
-  }[];
+    quantity: string
+    unit: string
+    ingredient: string
+    purpose?: string
+  }[]
   instructions: {
-    step_number: number;
-    category: string;
-    instruction: string;
-    is_key_step?: boolean;
-  }[];
+    step_number: number
+    category: string
+    instruction: string
+    is_key_step?: boolean
+  }[]
 }
 
 export interface Visuals {
   [key: string]: {
-    timestamp: string | null;
-    frame_base64: string | null;
-  };
+    timestamp: string | null
+    frame_base64: string | null
+  }
 }
 
 function App() {
@@ -51,24 +51,24 @@ function App() {
   useEffect(() => {
     try {
       if (url.includes('v=')) {
-        const id = url.split('v=')[1].split('&')[0];
-        setVideoId(id);
+        const id = url.split('v=')[1].split('&')[0]
+        setVideoId(id)
       } else if (url.includes('youtu.be/')) {
-        const id = url.split('youtu.be/')[1].split('?')[0];
-        setVideoId(id);
+        const id = url.split('youtu.be/')[1].split('?')[0]
+        setVideoId(id)
       } else {
-        setVideoId(null);
+        setVideoId(null)
       }
     } catch (e) {
-      setVideoId(null);
+      setVideoId(null)
     }
-  }, [url]);
+  }, [url])
 
   const handleSelectCachedVideo = (id: string, videoUrl: string) => {
-    setUrl(videoUrl);
-    setVideoId(id);
-    window.scrollTo({ top: 0, behavior: 'smooth' });
-  };
+    setUrl(videoUrl)
+    setVideoId(id)
+    window.scrollTo({ top: 0, behavior: 'smooth' })
+  }
 
   const handleExtract = async (submitUrl: string) => {
     setLoading(true)
@@ -102,13 +102,16 @@ function App() {
         }
       })
 
-      const visualsResponse = await fetch(`${config.API_BASE_URL}/api/visuals`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ url: submitUrl, key_steps: keySteps }),
-      })
+      const visualsResponse = await fetch(
+        `${config.API_BASE_URL}/api/visuals`,
+        {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({ url: submitUrl, key_steps: keySteps }),
+        }
+      )
 
       if (!visualsResponse.ok) {
         throw new Error('Failed to extract visuals')
@@ -138,13 +141,9 @@ function App() {
         loading={loading}
       />
 
-      {loading && videoId && (
-        <PizzaTracker videoId={videoId} />
-      )}
+      {loading && videoId && <PizzaTracker videoId={videoId} />}
 
-      {videoId && !loading && !recipe && (
-        <PipelineStatus videoId={videoId} />
-      )}
+      {videoId && !loading && !recipe && <PipelineStatus videoId={videoId} />}
 
       {error && (
         <div className="error">
@@ -158,18 +157,31 @@ function App() {
 
       {recipe && (
         <div>
-          <button
-            className="btn-secondary"
-            style={{ marginBottom: '1rem' }}
-            onClick={() => {
-              setRecipe(null);
-              setVisuals(null);
-              setShowCache(true);
-              // Keep URL and VideoID so user can easily re-run or modify
-            }}
-          >
-            ← Back to Cache / Search
-          </button>
+          <div style={{ display: 'flex', gap: '1rem', marginBottom: '1rem' }}>
+            <button
+              className="btn-secondary"
+              onClick={() => {
+                setRecipe(null)
+                setVisuals(null)
+                setShowCache(true)
+                // Keep URL and VideoID so user can easily re-run or modify
+              }}
+            >
+              ← Back to Cache / Search
+            </button>
+            {videoId && (
+              <button
+                className="btn-primary"
+                onClick={() => {
+                  // Download PDF from backend
+                  const pdfUrl = `${config.API_BASE_URL}/api/cache/${videoId}/pdf`
+                  window.open(pdfUrl, '_blank')
+                }}
+              >
+                📥 Download PDF
+              </button>
+            )}
+          </div>
           <RecipeView recipe={recipe} visuals={visuals} />
         </div>
       )}
