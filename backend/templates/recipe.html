@@ -187,9 +187,11 @@
 
       .instruction-item {
         position: relative;
-        padding-left: 52px;
-        margin-bottom: 22px;
+        padding-left: 42px;
+        margin-bottom: 14px;
         break-inside: avoid;
+        display: flex;
+        align-items: flex-start;
       }
 
       .instruction-item::before {
@@ -197,9 +199,9 @@
         content: counter(step-counter);
         position: absolute;
         left: 0;
-        top: 0;
-        width: 36px;
-        height: 36px;
+        top: 2px;
+        width: 28px;
+        height: 28px;
         background: #C85A3F;
         color: #FFF9F3;
         border-radius: 50%;
@@ -207,8 +209,9 @@
         align-items: center;
         justify-content: center;
         font-weight: 600;
-        font-size: 16px;
+        font-size: 14px;
         font-family: 'Cormorant Garamond', serif;
+        flex-shrink: 0;
       }
 
       .instruction-text {
