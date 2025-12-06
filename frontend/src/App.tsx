@@ -37,6 +37,15 @@ export interface Visuals {
   }
 }
 
+interface PipelineStatusState {
+  metadata: boolean
+  transcript: boolean
+  recipe: boolean
+  timestamps: boolean
+  frames: boolean
+  pdf: boolean
+}
+
 function App() {
   const [url, setUrl] = useState('')
   const [videoId, setVideoId] = useState<string | null>(null)
@@ -113,13 +122,70 @@ function App() {
     }, 2000) // Poll every 2 seconds
   }
 
+  const fetchCachedRecipe = async (id: string) => {
+    try {
+      const response = await fetch(`${config.API_BASE_URL}/api/cache/${id}`)
+      if (!response.ok) return null
+      const data = await response.json()
+      return data.recipe as Recipe
+    } catch (err) {
+      console.error('Error fetching cached recipe:', err)
+      return null
+    }
+  }
+
+  const triggerPdfGeneration = async (id: string) => {
+    try {
+      // Fire-and-forget PDF generation; status polling will mark it ready
+      await fetch(`${config.API_BASE_URL}/api/cache/${id}/pdf`)
+    } catch (err) {
+      console.error('Error generating PDF:', err)
+    }
+  }
+
   const handleExtract = async (submitUrl: string) => {
+    // Reset any existing PDF polling
+    if (pollIntervalRef.current) {
+      clearInterval(pollIntervalRef.current)
+      pollIntervalRef.current = null
+    }
+
     setLoading(true)
     setError(null)
     setRecipe(null)
     setShowCache(false)
+    setPdfReady(false)
+    setCheckingPdf(false)
 
     try {
+      // If recipe already cached, reuse it and only generate missing PDF
+      let cachedStatus: PipelineStatusState | null = null
+      if (videoId) {
+        try {
+          const statusResponse = await fetch(`${config.API_BASE_URL}/api/cache/${videoId}/status`)
+          if (statusResponse.ok) {
+            cachedStatus = await statusResponse.json()
+          }
+        } catch (err) {
+          console.error('Error checking cached status:', err)
+        }
+      }
+
+      if (videoId && cachedStatus?.recipe) {
+        const cachedRecipe = await fetchCachedRecipe(videoId)
+        if (cachedRecipe) {
+          setRecipe(cachedRecipe)
+          if (cachedStatus.pdf) {
+            setPdfReady(true)
+            setCheckingPdf(false)
+          } else {
+            checkPdfStatus(videoId)
+            void triggerPdfGeneration(videoId)
+          }
+          return
+        }
+      }
+
       // Step 1: Extract recipe
       const recipeResponse = await fetch(`${config.API_BASE_URL}/api/recipe`, {
         method: 'POST',

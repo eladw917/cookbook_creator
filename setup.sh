@@ -56,8 +56,9 @@ check_python_version() {
         exit 1
     fi
 
-    # Check version
-    PYTHON_VERSION=$($PYTHON_CMD --version 2>&1 | grep -oP '\d+\.\d+')
+    # Check version (macOS-compatible: use sed instead of grep -P)
+    # Extract major.minor version (e.g., "3.13" from "Python 3.13.5")
+    PYTHON_VERSION=$($PYTHON_CMD --version 2>&1 | sed -E 's/^[^0-9]*([0-9]+)\.([0-9]+).*/\1.\2/')
     PYTHON_MAJOR=$(echo $PYTHON_VERSION | cut -d. -f1)
     PYTHON_MINOR=$(echo $PYTHON_VERSION | cut -d. -f2)
 
@@ -88,6 +89,46 @@ check_nodejs_version() {
     print_success "Node.js $NODE_VERSION found"
 }
 
+# Function to check and install system dependencies for Pillow (macOS)
+check_system_dependencies() {
+    if [[ "$OSTYPE" == "darwin"* ]]; then
+        if check_command brew; then
+            print_info "Checking system dependencies for Pillow..."
+            MISSING_DEPS=()
+            
+            # Check for required libraries
+            if ! brew list jpeg &>/dev/null; then
+                MISSING_DEPS+=("jpeg")
+            fi
+            if ! brew list libtiff &>/dev/null; then
+                MISSING_DEPS+=("libtiff")
+            fi
+            if ! brew list freetype &>/dev/null; then
+                MISSING_DEPS+=("freetype")
+            fi
+            if ! brew list libpng &>/dev/null; then
+                MISSING_DEPS+=("libpng")
+            fi
+            if ! brew list webp &>/dev/null; then
+                MISSING_DEPS+=("webp")
+            fi
+            
+            if [ ${#MISSING_DEPS[@]} -gt 0 ]; then
+                print_warning "Missing system dependencies: ${MISSING_DEPS[*]}"
+                print_info "Installing via Homebrew..."
+                brew install ${MISSING_DEPS[*]}
+                print_success "System dependencies installed"
+            else
+                print_success "All system dependencies already installed"
+            fi
+        else
+            print_warning "Homebrew not found. Pillow may fail to build."
+            print_info "Install Homebrew: https://brew.sh/"
+            print_info "Then run: brew install jpeg libtiff freetype libpng webp"
+        fi
+    fi
+}
+
 # Function to setup backend
 setup_backend() {
     print_info "Setting up backend..."
@@ -96,6 +137,9 @@ setup_backend() {
         print_error "Backend directory not found. Are you in the project root?"
         exit 1
     fi
+
+    # Check system dependencies before creating venv
+    check_system_dependencies
 
     cd backend
 
@@ -126,13 +170,18 @@ setup_backend() {
     pip install -r requirements.txt
     print_success "Python dependencies installed"
 
+    # Install Playwright browser binaries (needed for PDF generation)
+    print_info "Installing Playwright browsers (chromium)..."
+    python -m playwright install chromium
+
     # Verify installation
     print_info "Verifying backend setup..."
     python -c "
 import sys
 try:
-    import fastapi, uvicorn, google.genai, yt_dlp
+    import fastapi, uvicorn, google.genai, yt_dlp, jinja2, PIL
     from youtube_transcript_api import YouTubeTranscriptApi
+    from playwright.async_api import async_playwright
     print('✅ All critical backend dependencies imported successfully')
 except ImportError as e:
     print(f'❌ Import error: {e}')
