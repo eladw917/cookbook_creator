@@ -84,6 +84,22 @@ npm install
 
 ## 🎯 Usage
 
+### Setting up API Key
+
+Before starting the servers, you need to set up your Gemini API key:
+
+#### Quick Setup
+```bash
+# Run the interactive setup script
+./setup_key.sh
+```
+
+#### Manual Setup
+```bash
+# Or manually create the .env file
+echo "GEMINI_API_KEY=your-actual-api-key-here" > backend/.env
+```
+
 ### Starting Servers
 
 #### Option 1: Start Everything

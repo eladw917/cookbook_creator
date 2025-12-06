@@ -102,7 +102,7 @@ def get_transcript(video_id: str) -> List[str]:
             print(f"DEBUG: Fetching subtitles from {sub_url[:50]}...")
             import requests
             response = requests.get(sub_url)
-            
+
             try:
                 data = response.json()
                 text_segments = []
@@ -117,7 +117,36 @@ def get_transcript(video_id: str) -> List[str]:
                 return text_segments
             except Exception as e:
                 print(f"DEBUG: Failed to parse subtitle JSON: {e}")
-                raise e
+                # Try to parse as VTT format if JSON fails
+                try:
+                    content = response.text
+                    print(f"DEBUG: Response content type: {response.headers.get('content-type', 'unknown')}")
+                    print(f"DEBUG: Response starts with: {content[:200]}...")
+
+                    # Try to parse VTT format
+                    if 'WEBVTT' in content:
+                        print("DEBUG: Detected VTT format, attempting to parse...")
+                        lines = content.split('\n')
+                        text_segments = []
+                        for line in lines:
+                            line = line.strip()
+                            # Skip VTT headers and timing lines
+                            if line and not line.startswith('WEBVTT') and not '-->' in line and not line.isdigit():
+                                # Remove HTML tags if any
+                                import re
+                                clean_line = re.sub(r'<[^>]+>', '', line)
+                                if clean_line.strip():
+                                    text_segments.append(clean_line.strip())
+                        if text_segments:
+                            print(f"DEBUG: Extracted {len(text_segments)} VTT segments")
+                            cache_manager.save_step(video_id, "transcript", text_segments)
+                            return text_segments
+
+                    print("DEBUG: Could not parse subtitle content")
+                    raise Exception(f"Could not parse subtitle content: {e}")
+                except Exception as vtt_e:
+                    print(f"DEBUG: VTT parsing also failed: {vtt_e}")
+                    raise Exception(f"Subtitle parsing failed for both JSON and VTT formats")
 
 
 def extract_recipe_gemini(input_data: dict, video_url: str) -> dict:
@@ -227,57 +256,90 @@ def timestamp_to_seconds(timestamp: str) -> float:
 def extract_frame_at_time(video_url: str, timestamp_seconds: float) -> bytes:
     """Extract a single frame at specific timestamp using ffmpeg"""
     print(f"DEBUG: Extracting frame at {timestamp_seconds}s...")
-    
     # Convert seconds to HH:MM:SS format for ffmpeg
     hours = int(timestamp_seconds // 3600)
     minutes = int((timestamp_seconds % 3600) // 60)
     seconds = int(timestamp_seconds % 60)
     timestamp_str = f"{hours:02d}:{minutes:02d}:{seconds:02d}"
-    
-    # Create temp file for output
-    with tempfile.NamedTemporaryFile(suffix='.jpg', delete=False) as tmp_frame:
-        frame_path = tmp_frame.name
-    
+
+    # Download video once (best MP4) then seek locally — mirrors the working notebook flow
+    tmp_dir = tempfile.mkdtemp(prefix="frame_extract_")
+    video_path = os.path.join(tmp_dir, "video.%(ext)s")
+    frame_path = os.path.join(tmp_dir, "frame.jpg")
+
     try:
-        # Use the notebook's approach: get URL with yt-dlp -g and pass to ffmpeg in one shell command
-        # This minimizes URL expiration risk and avoids downloading the full video
-        command = f'''URL=$(yt-dlp -f "bestvideo[ext=mp4]/best[ext=mp4]/best" -g "{video_url}" 2>/dev/null | head -1) && ffmpeg -ss {timestamp_str} -i "$URL" -frames:v 1 -q:v 2 "{frame_path}" -y 2>&1 | tail -5'''
-        
-        print(f"DEBUG: Running shell command to extract frame...")
+        # Download the video (best mp4 or best available)
+        ydl_opts = {
+            "format": 'bestvideo[ext=mp4]/best[ext=mp4]/best',
+            "outtmpl": video_path,
+            "quiet": True,
+            "no_warnings": True,
+        }
+
+        print("DEBUG: Downloading video for frame extraction...")
+        with yt_dlp.YoutubeDL(ydl_opts) as ydl:
+            info = ydl.extract_info(video_url, download=True)
+            ext = info.get("ext", "mp4")
+            downloaded_path = video_path.replace("%(ext)s", ext)
+
+        if not os.path.exists(downloaded_path):
+            raise Exception("Video download failed; file not found")
+
+        # Extract the frame locally
+        print("DEBUG: Running ffmpeg on downloaded video...")
+        ffmpeg_cmd = [
+            "ffmpeg",
+            "-ss",
+            timestamp_str,
+            "-i",
+            downloaded_path,
+            "-frames:v",
+            "1",
+            "-q:v",
+            "2",
+            "-y",
+            frame_path,
+        ]
+
         result = subprocess.run(
-            command,
-            shell=True,
-            executable='/bin/bash',
+            ffmpeg_cmd,
             capture_output=True,
             text=True,
-            timeout=30
+            timeout=90,
         )
-        
-        # Check if the file was actually created
+
+        if result.returncode != 0:
+            print(f"DEBUG: ffmpeg failed: {result.stderr[-500:]}")
+            raise Exception("ffmpeg failed to extract frame")
+
         if os.path.exists(frame_path):
             file_size = os.path.getsize(frame_path)
             print(f"DEBUG: Frame extracted successfully ({file_size} bytes)")
-            
-            # Read the frame
-            with open(frame_path, 'rb') as f:
-                frame_data = f.read()
-            
-            return frame_data
-        else:
-            raise Exception('Frame file was not created')
-            
+            with open(frame_path, "rb") as f:
+                return f.read()
+
+        raise Exception("Frame file was not created")
+
     except subprocess.TimeoutExpired:
-        print(f"DEBUG: Command timed out after 30 seconds")
+        print("DEBUG: ffmpeg command timed out")
         raise Exception("Frame extraction timed out")
     except Exception as e:
         print(f"DEBUG: Extraction error: {str(e)}")
-        if result.stderr:
-            print(f"DEBUG: stderr: {result.stderr[-500:]}")
         raise
     finally:
-        # Clean up temp file
-        if os.path.exists(frame_path):
-            os.remove(frame_path)
+        # Clean up temp files
+        try:
+            if os.path.exists(frame_path):
+                os.remove(frame_path)
+            # Remove downloaded video(s)
+            for file in os.listdir(tmp_dir):
+                try:
+                    os.remove(os.path.join(tmp_dir, file))
+                except Exception:
+                    pass
+            os.rmdir(tmp_dir)
+        except Exception:
+            pass
 
 
 def extract_best_frame(video_url: str, timestamp: str, step_instruction: str, step_number: str) -> str:

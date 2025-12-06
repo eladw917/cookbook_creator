@@ -91,25 +91,27 @@ async def extract_visuals(request: VisualsRequest):
         # Get timestamps from Gemini (still gets all steps for analysis)
         timestamps = extract_timestamps_gemini(request.url, request.key_steps)
 
-        # Only extract frame for dish_visual
+        # Extract frames for key steps + dish_visual
         results = {}
-        if "dish_visual" in timestamps and timestamps["dish_visual"] and timestamps["dish_visual"] != "null":
-            # Extract frame for dish_visual
-            best_frame_data = extract_best_frame(
-                request.url,
-                timestamps["dish_visual"],
-                "Completed dish visual representation",
-                "dish_visual"  # Pass step number for caching
-            )
-            results["dish_visual"] = {
-                "timestamp": timestamps["dish_visual"],
-                "frame_base64": best_frame_data
-            }
-        else:
-            results["dish_visual"] = {
-                "timestamp": None,
-                "frame_base64": None
-            }
+        for step_key, ts in timestamps.items():
+            if ts and ts != "null":
+                # Use provided instruction when available for context
+                instruction = request.key_steps.get(step_key, "Visual reference")
+                best_frame_data = extract_best_frame(
+                    request.url,
+                    ts,
+                    instruction,
+                    step_key  # cache key
+                )
+                results[step_key] = {
+                    "timestamp": ts,
+                    "frame_base64": best_frame_data
+                }
+            else:
+                results[step_key] = {
+                    "timestamp": None,
+                    "frame_base64": None
+                }
 
         return results
 
