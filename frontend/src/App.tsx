@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import './App.css'
 import UrlInput from './components/UrlInput'
 import CacheView from './components/CacheView'
@@ -44,6 +44,9 @@ function App() {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [showCache, setShowCache] = useState(true)
+  const [pdfReady, setPdfReady] = useState(false)
+  const [checkingPdf, setCheckingPdf] = useState(false)
+  const pollIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null)
 
   // Extract video ID when URL changes
   useEffect(() => {
@@ -62,10 +65,52 @@ function App() {
     }
   }, [url])
 
+  // Cleanup interval on unmount
+  useEffect(() => {
+    return () => {
+      if (pollIntervalRef.current) {
+        clearInterval(pollIntervalRef.current)
+        pollIntervalRef.current = null
+      }
+    }
+  }, [])
+
   const handleSelectCachedVideo = (id: string, videoUrl: string) => {
     setUrl(videoUrl)
     setVideoId(id)
     window.scrollTo({ top: 0, behavior: 'smooth' })
+  }
+
+  // Check PDF status and poll until ready
+  const checkPdfStatus = (id: string) => {
+    setCheckingPdf(true)
+    setPdfReady(false)
+
+    // Clear any existing interval
+    if (pollIntervalRef.current) {
+      clearInterval(pollIntervalRef.current)
+    }
+
+    pollIntervalRef.current = setInterval(async () => {
+      try {
+        const response = await fetch(
+          `${config.API_BASE_URL}/api/cache/${id}/status`
+        )
+        if (response.ok) {
+          const status = await response.json()
+          if (status.pdf) {
+            setPdfReady(true)
+            setCheckingPdf(false)
+            if (pollIntervalRef.current) {
+              clearInterval(pollIntervalRef.current)
+              pollIntervalRef.current = null
+            }
+          }
+        }
+      } catch (err) {
+        console.error('Error checking PDF status:', err)
+      }
+    }, 2000) // Poll every 2 seconds
   }
 
   const handleExtract = async (submitUrl: string) => {
@@ -90,6 +135,11 @@ function App() {
 
       const recipeData = await recipeResponse.json()
       setRecipe(recipeData)
+
+      // Start checking for PDF after recipe extraction
+      if (videoId) {
+        checkPdfStatus(videoId)
+      }
     } catch (err) {
       setError(err instanceof Error ? err.message : 'An error occurred')
       setShowCache(true)
@@ -134,6 +184,12 @@ function App() {
               onClick={() => {
                 setRecipe(null)
                 setShowCache(true)
+                setPdfReady(false)
+                setCheckingPdf(false)
+                if (pollIntervalRef.current) {
+                  clearInterval(pollIntervalRef.current)
+                  pollIntervalRef.current = null
+                }
                 // Keep URL and VideoID so user can easily re-run or modify
               }}
             >
@@ -143,8 +199,8 @@ function App() {
               <button
                 className="btn-primary"
                 onClick={() => {
-                  // Download PDF from backend
-                  const pdfUrl = `${config.API_BASE_URL}/api/cache/${videoId}/pdf`
+                  // Download PDF from backend with download=true to force download
+                  const pdfUrl = `${config.API_BASE_URL}/api/cache/${videoId}/pdf?download=true`
                   window.open(pdfUrl, '_blank')
                 }}
               >
@@ -152,6 +208,28 @@ function App() {
               </button>
             )}
           </div>
+
+          {/* PDF Preview Section */}
+          {videoId && (
+            <div className="pdf-preview-container">
+              {checkingPdf && !pdfReady && (
+                <div className="pdf-loading">
+                  <div className="spinner"></div>
+                  <p>Generating PDF preview...</p>
+                </div>
+              )}
+
+              {pdfReady && (
+                <div className="pdf-iframe-wrapper">
+                  <iframe
+                    src={`${config.API_BASE_URL}/api/cache/${videoId}/pdf`}
+                    title="Recipe PDF Preview"
+                    className="pdf-iframe"
+                  />
+                </div>
+              )}
+            </div>
+          )}
         </div>
       )}
     </div>

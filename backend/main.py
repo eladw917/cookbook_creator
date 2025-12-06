@@ -222,11 +222,13 @@ async def clear_cache_step(video_id: str, step_name: str):
 @app.get("/api/cache/{video_id}/pdf")
 async def download_recipe_pdf(
     video_id: str, 
-    regenerate: bool = Query(False, description="Force regenerate PDF even if cached")
+    regenerate: bool = Query(False, description="Force regenerate PDF even if cached"),
+    download: bool = Query(False, description="Force download instead of inline display")
 ):
     """
     Generate and download a PDF of the recipe.
     Uses cached PDF if available unless regenerate=true.
+    Set download=true to force download, otherwise displays inline for preview.
     """
     import pdf_service
     try:
@@ -244,11 +246,13 @@ async def download_recipe_pdf(
         filename = f"{safe_title}.pdf"
         
         # Return PDF with proper headers
+        # Use 'inline' for preview, 'attachment' for download
+        disposition = "attachment" if download else "inline"
         return Response(
             content=pdf_bytes,
             media_type="application/pdf",
             headers={
-                "Content-Disposition": f"attachment; filename={filename}"
+                "Content-Disposition": f"{disposition}; filename={filename}"
             }
         )
         
