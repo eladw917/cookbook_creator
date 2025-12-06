@@ -45,7 +45,8 @@ export default function PDFView({ videoId }: PDFViewProps) {
 
     function onDocumentLoadError(error: Error) {
         console.error('Error loading PDF:', error);
-        setError('Failed to load PDF. The PDF might still be generating.');
+        console.error('Error details:', error.message, error.stack);
+        setError(`Failed to load PDF: ${error.message}. The PDF might still be generating or there may be a CORS issue.`);
         setLoading(false);
     }
 
@@ -55,10 +56,20 @@ export default function PDFView({ videoId }: PDFViewProps) {
             {error && <div className="pdf-error">{error}</div>}
             
             <Document
-                file={pdfUrl}
+                file={{
+                    url: pdfUrl,
+                    httpHeaders: {
+                        'Accept': 'application/pdf',
+                    },
+                    withCredentials: false,
+                }}
                 onLoadSuccess={onDocumentLoadSuccess}
                 onLoadError={onDocumentLoadError}
                 loading={<div>Loading PDF document...</div>}
+                options={{
+                    cMapUrl: `https://unpkg.com/pdfjs-dist@${pdfjs.version}/cmaps/`,
+                    standardFontDataUrl: `https://unpkg.com/pdfjs-dist@${pdfjs.version}/standard_fonts/`,
+                }}
             >
                 <div className="pdf-spread">
                     {numPages >= 1 && (
