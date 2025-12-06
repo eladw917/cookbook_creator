@@ -46,9 +46,98 @@ check_port() {
     return 0
 }
 
+# Function to check and setup API key
+check_api_key() {
+    print_info "Checking Gemini API key..."
+
+    # Check if .env file exists and has the key
+    if [ -f "$BACKEND_DIR/.env" ]; then
+        if grep -q "^GEMINI_API_KEY=" "$BACKEND_DIR/.env" 2>/dev/null; then
+            API_KEY=$(grep "^GEMINI_API_KEY=" "$BACKEND_DIR/.env" | cut -d'=' -f2-)
+            if [ -n "$API_KEY" ] && [ "$API_KEY" != "your-api-key-here" ]; then
+                print_success "API key found in .env file"
+                return 0
+            fi
+        fi
+    fi
+
+    # Check environment variable
+    if [ -n "$GEMINI_API_KEY" ]; then
+        print_success "API key found in environment variable"
+        return 0
+    fi
+
+    # API key not found, prompt user
+    print_warning "Gemini API key not found!"
+    echo ""
+    print_info "You need a Google Gemini API key to use this application."
+    print_info "Get your API key from: https://aistudio.google.com/"
+    echo ""
+    read -p "Enter your Gemini API key: " user_api_key
+
+    if [ -z "$user_api_key" ]; then
+        print_error "No API key provided. Cannot start servers."
+        return 1
+    fi
+
+    # Validate the API key format (basic check)
+    if [[ ! $user_api_key =~ ^AIzaSy ]]; then
+        print_warning "API key doesn't start with 'AIzaSy'. This might not be a valid Gemini API key."
+        read -p "Continue anyway? (y/N): " -n 1 -r
+        echo ""
+        if [[ ! $REPLY =~ ^[Yy]$ ]]; then
+            print_error "Setup cancelled by user."
+            return 1
+        fi
+    fi
+
+    # Test the API key (optional, might require internet)
+    print_info "Testing API key..."
+    if command -v python3 >/dev/null 2>&1 || command -v python >/dev/null 2>&1; then
+        PYTHON_CMD=${PYTHON_CMD:-python3}
+        if [ ! -x "$(command -v $PYTHON_CMD)" ]; then
+            PYTHON_CMD=python
+        fi
+
+        # Quick test using the backend environment
+        if [ -d "$BACKEND_DIR/venv" ]; then
+            cd "$BACKEND_DIR"
+            source venv/bin/activate
+            cd ..
+            PYTHON_TEST_CMD="source $BACKEND_DIR/venv/bin/activate && python -c \"import os; from google import genai; client = genai.Client(api_key='$user_api_key'); print('API key is valid')\" 2>/dev/null"
+        else
+            PYTHON_TEST_CMD="$PYTHON_CMD -c \"import os; os.environ['GEMINI_API_KEY']='$user_api_key'; print('API key format looks valid')\" 2>/dev/null"
+        fi
+
+        if eval "$PYTHON_TEST_CMD" >/dev/null 2>&1; then
+            print_success "API key validation passed"
+        else
+            print_warning "Could not validate API key (might be network issues or invalid key)"
+            read -p "Continue with this API key? (y/N): " -n 1 -r
+            echo ""
+            if [[ ! $REPLY =~ ^[Yy]$ ]]; then
+                print_error "Setup cancelled by user."
+                return 1
+            fi
+        fi
+    fi
+
+    # Save to .env file
+    echo "GEMINI_API_KEY=$user_api_key" > "$BACKEND_DIR/.env"
+    print_success "API key saved to $BACKEND_DIR/.env"
+
+    return 0
+}
+
 # Function to start backend server
 start_backend() {
     print_info "Starting backend server..."
+
+    # Check API key first
+    if ! check_api_key; then
+        print_error "Cannot start backend server without valid API key"
+        return 1
+    fi
 
     # Check if backend port is available
     if ! check_port $BACKEND_PORT "Backend"; then
@@ -134,6 +223,7 @@ show_usage() {
     echo "  start          Start both backend and frontend servers"
     echo "  backend        Start only the backend server"
     echo "  frontend       Start only the frontend server"
+    echo "  setup          Setup API key and configuration"
     echo "  stop           Stop all running servers"
     echo "  status         Show status of servers"
     echo "  ports          Show configured ports"
@@ -144,6 +234,7 @@ show_usage() {
     echo "  Frontend (Vite):    $FRONTEND_PORT"
     echo ""
     echo "Examples:"
+    echo "  $0 setup          # First-time setup (enter API key)"
     echo "  $0 start          # Start both servers"
     echo "  $0 backend        # Start only backend"
     echo "  $0 stop           # Stop all servers"
@@ -257,6 +348,20 @@ case "${1:-start}" in
 
     "ports")
         show_ports
+        ;;
+
+    "setup")
+        print_info "Setting up Recipe Extract..."
+        echo ""
+        if check_api_key; then
+            print_success "Setup completed successfully!"
+            echo ""
+            print_info "You can now start the servers with:"
+            echo "  ./servers.sh start"
+        else
+            print_error "Setup failed."
+            exit 1
+        fi
         ;;
 
     "help"|"-h"|"--help")
