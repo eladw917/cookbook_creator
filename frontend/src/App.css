@@ -1043,3 +1043,46 @@ header p {
     box-shadow: 0 0 0 0 rgba(255, 107, 107, 0);
   }
 }
+
+/* PDF Viewer Styles */
+.pdf-viewer-container {
+  margin-top: 2rem;
+}
+
+.pdf-loading,
+.pdf-error {
+  text-align: center;
+  padding: 2rem;
+  font-size: 1.1rem;
+  color: var(--text-muted);
+}
+
+.pdf-error {
+  color: #ff6b6b;
+  background: rgba(244, 67, 54, 0.1);
+  border: 1px solid rgba(244, 67, 54, 0.3);
+  border-radius: 12px;
+}
+
+.pdf-spread {
+  display: flex;
+  gap: 20px;
+  justify-content: center;
+  align-items: flex-start;
+  background: #f0f0f0;
+  padding: 2rem;
+  border-radius: 4px;
+}
+
+.pdf-page-container {
+  background: white;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.2);
+  border-radius: 4px;
+  overflow: hidden;
+}
+
+.pdf-page-container canvas {
+  display: block;
+  max-width: 100%;
+  height: auto;
+}
