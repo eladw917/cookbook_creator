@@ -1,11 +1,9 @@
 import { useState, useEffect } from 'react';
 import { Document, Page, pdfjs } from 'react-pdf';
-import 'react-pdf/dist/esm/Page/AnnotationLayer.css';
-import 'react-pdf/dist/esm/Page/TextLayer.css';
 import config from '../config';
 
 // Configure worker for PDF.js
-pdfjs.GlobalWorkerOptions.workerSrc = `//cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjs.version}/pdf.worker.min.js`;
+pdfjs.GlobalWorkerOptions.workerSrc = `https://unpkg.com/pdfjs-dist@${pdfjs.version}/build/pdf.worker.min.js`;
 
 interface PDFViewProps {
     videoId: string;
@@ -68,8 +66,8 @@ export default function PDFView({ videoId }: PDFViewProps) {
                             <Page 
                                 pageNumber={1} 
                                 width={pageWidth}
-                                renderTextLayer={true}
-                                renderAnnotationLayer={true}
+                                renderTextLayer={false}
+                                renderAnnotationLayer={false}
                             />
                         </div>
                     )}
@@ -78,8 +76,8 @@ export default function PDFView({ videoId }: PDFViewProps) {
                             <Page 
                                 pageNumber={2} 
                                 width={pageWidth}
-                                renderTextLayer={true}
-                                renderAnnotationLayer={true}
+                                renderTextLayer={false}
+                                renderAnnotationLayer={false}
                             />
                         </div>
                     )}
