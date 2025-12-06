@@ -55,41 +55,48 @@ export default function PDFView({ videoId }: PDFViewProps) {
             {loading && <div className="pdf-loading">Loading PDF...</div>}
             {error && <div className="pdf-error">{error}</div>}
             
-            <Document
-                file={{
-                    url: pdfUrl,
-                    httpHeaders: {
-                        'Accept': 'application/pdf',
-                    },
-                    withCredentials: false,
-                }}
-                onLoadSuccess={onDocumentLoadSuccess}
-                onLoadError={onDocumentLoadError}
-                loading={<div>Loading PDF document...</div>}
-            >
-                <div className="pdf-spread">
-                    {numPages >= 1 && (
-                        <div className="pdf-page-container">
-                            <Page 
-                                pageNumber={1} 
-                                width={pageWidth}
-                                renderTextLayer={false}
-                                renderAnnotationLayer={false}
-                            />
+            {pdfUrl && (
+                <Document
+                    key={videoId}
+                    file={{
+                        url: pdfUrl,
+                        httpHeaders: {
+                            'Accept': 'application/pdf',
+                        },
+                        withCredentials: false,
+                    }}
+                    onLoadSuccess={onDocumentLoadSuccess}
+                    onLoadError={onDocumentLoadError}
+                    loading={<div>Loading PDF document...</div>}
+                >
+                    {numPages > 0 && (
+                        <div className="pdf-spread">
+                            {numPages >= 1 && (
+                                <div className="pdf-page-container">
+                                    <Page 
+                                        key={`page-1-${videoId}`}
+                                        pageNumber={1} 
+                                        width={pageWidth}
+                                        renderTextLayer={false}
+                                        renderAnnotationLayer={false}
+                                    />
+                                </div>
+                            )}
+                            {numPages >= 2 && (
+                                <div className="pdf-page-container">
+                                    <Page 
+                                        key={`page-2-${videoId}`}
+                                        pageNumber={2} 
+                                        width={pageWidth}
+                                        renderTextLayer={false}
+                                        renderAnnotationLayer={false}
+                                    />
+                                </div>
+                            )}
                         </div>
                     )}
-                    {numPages >= 2 && (
-                        <div className="pdf-page-container">
-                            <Page 
-                                pageNumber={2} 
-                                width={pageWidth}
-                                renderTextLayer={false}
-                                renderAnnotationLayer={false}
-                            />
-                        </div>
-                    )}
-                </div>
-            </Document>
+                </Document>
+            )}
         </div>
     );
 }
