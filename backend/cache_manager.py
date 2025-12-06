@@ -78,7 +78,8 @@ def get_pipeline_status(video_id: str) -> Dict[str, bool]:
         "transcript": (video_dir / "transcript.json").exists(),
         "recipe": (video_dir / "recipe.json").exists(),
         "timestamps": (video_dir / "timestamps.json").exists(),
-        "frames": (video_dir / "frames").exists() and len(list((video_dir / "frames").glob("*.jpg"))) > 0
+        "frames": (video_dir / "frames").exists() and len(list((video_dir / "frames").glob("*.jpg"))) > 0,
+        "pdf": (video_dir / "recipe.pdf").exists()
     }
     
     return status
@@ -104,6 +105,11 @@ def clear_step(video_id: str, step_name: str) -> None:
         if frames_dir.exists():
             shutil.rmtree(frames_dir)
             print(f"DEBUG: Cleared frames for video {video_id}")
+    elif step_name == "pdf":
+        pdf_path = video_dir / "recipe.pdf"
+        if pdf_path.exists():
+            pdf_path.unlink()
+            print(f"DEBUG: Cleared pdf for video {video_id}")
     else:
         file_path = video_dir / f"{step_name}.json"
         if file_path.exists():

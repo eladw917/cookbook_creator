@@ -1,4 +1,4 @@
-from fastapi import FastAPI, HTTPException, Query
+from fastapi import FastAPI, HTTPException, Query, BackgroundTasks
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import StreamingResponse, Response
 from pydantic import BaseModel
@@ -19,8 +19,20 @@ from services import (
     extract_timestamps_gemini,
     extract_best_frame
 )
+import pdf_service
 
 app = FastAPI(title="Recipe Extract API")
+
+
+async def generate_pdf_background(video_id: str):
+    """Background task to generate PDF after visuals are complete"""
+    try:
+        print(f"DEBUG: Starting background PDF generation for video {video_id}")
+        await pdf_service.generate_or_load_pdf(video_id, force_regenerate=False)
+        print(f"DEBUG: Background PDF generation completed for video {video_id}")
+    except Exception as e:
+        # Log error but don't crash - PDF generation is not critical
+        print(f"ERROR: Background PDF generation failed for video {video_id}: {e}")
 
 # CORS middleware for frontend
 # Allow origins from environment variable, default to localhost for development
@@ -83,7 +95,7 @@ async def extract_recipe(request: RecipeRequest):
 
 
 @app.post("/api/visuals")
-async def extract_visuals(request: VisualsRequest):
+async def extract_visuals(request: VisualsRequest, background_tasks: BackgroundTasks):
     """Extract timestamps and best frame for dish visual only"""
     try:
         video_id = request.url.split("v=")[-1].split("&")[0]
@@ -115,6 +127,9 @@ async def extract_visuals(request: VisualsRequest):
                 "timestamp": timestamps["dish_visual"],
                 "frame_base64": best_frame_data
             }
+
+        # Schedule PDF generation in background (non-blocking)
+        background_tasks.add_task(generate_pdf_background, video_id)
 
         return results
 
@@ -192,7 +207,7 @@ async def clear_cache_step(video_id: str, step_name: str):
     """Clear a specific pipeline step for a video"""
     import cache_manager
     try:
-        valid_steps = ["metadata", "transcript", "recipe", "timestamps", "frames"]
+        valid_steps = ["metadata", "transcript", "recipe", "timestamps", "frames", "pdf"]
         if step_name not in valid_steps:
             raise HTTPException(status_code=400, detail=f"Invalid step name. Must be one of: {valid_steps}")
         

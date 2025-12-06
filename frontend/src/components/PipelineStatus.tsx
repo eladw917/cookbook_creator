@@ -12,6 +12,7 @@ interface Status {
     recipe: boolean;
     timestamps: boolean;
     frames: boolean;
+    pdf: boolean;
 }
 
 const PipelineStatus: React.FC<PipelineStatusProps> = ({ videoId, onStatusChange }) => {
@@ -40,7 +41,8 @@ const PipelineStatus: React.FC<PipelineStatusProps> = ({ videoId, onStatusChange
                     transcript: false,
                     recipe: false,
                     timestamps: false,
-                    frames: false
+                    frames: false,
+                    pdf: false
                 });
             }
         } catch (error) {
@@ -50,7 +52,8 @@ const PipelineStatus: React.FC<PipelineStatusProps> = ({ videoId, onStatusChange
                 transcript: false,
                 recipe: false,
                 timestamps: false,
-                frames: false
+                frames: false,
+                pdf: false
             });
         } finally {
             setLoading(false);
@@ -98,6 +101,7 @@ const PipelineStatus: React.FC<PipelineStatusProps> = ({ videoId, onStatusChange
         { key: 'recipe', label: 'Recipe Extraction' },
         { key: 'timestamps', label: 'Timestamp Analysis' },
         { key: 'frames', label: 'Frame Extraction' },
+        { key: 'pdf', label: 'PDF Generation' },
     ];
 
     return (

@@ -11,6 +11,7 @@ interface Status {
     recipe: boolean;
     timestamps: boolean;
     frames: boolean;
+    pdf: boolean;
 }
 
 const PizzaTracker: React.FC<PizzaTrackerProps> = ({ videoId }) => {
@@ -19,7 +20,8 @@ const PizzaTracker: React.FC<PizzaTrackerProps> = ({ videoId }) => {
         transcript: false,
         recipe: false,
         timestamps: false,
-        frames: false
+        frames: false,
+        pdf: false
     });
 
     useEffect(() => {
@@ -50,6 +52,7 @@ const PizzaTracker: React.FC<PizzaTrackerProps> = ({ videoId }) => {
         { key: 'recipe', label: 'Recipe', icon: '🍳' },
         { key: 'timestamps', label: 'Timing', icon: '⏱️' },
         { key: 'frames', label: 'Visuals', icon: '📸' },
+        { key: 'pdf', label: 'PDF', icon: '📄' },
     ];
 
     // Determine current active step
