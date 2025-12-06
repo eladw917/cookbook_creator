@@ -1,7 +1,6 @@
 import { useState, useEffect } from 'react'
 import './App.css'
 import UrlInput from './components/UrlInput'
-import RecipeView from './components/RecipeView'
 import CacheView from './components/CacheView'
 import PipelineStatus from './components/PipelineStatus'
 import PizzaTracker from './components/PizzaTracker'
@@ -42,7 +41,6 @@ function App() {
   const [url, setUrl] = useState('')
   const [videoId, setVideoId] = useState<string | null>(null)
   const [recipe, setRecipe] = useState<Recipe | null>(null)
-  const [visuals, setVisuals] = useState<Visuals | null>(null)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [showCache, setShowCache] = useState(true)
@@ -74,7 +72,6 @@ function App() {
     setLoading(true)
     setError(null)
     setRecipe(null)
-    setVisuals(null)
     setShowCache(false)
 
     try {
@@ -93,32 +90,6 @@ function App() {
 
       const recipeData = await recipeResponse.json()
       setRecipe(recipeData)
-
-      // Step 2: Extract visuals for key steps
-      const keySteps: { [key: string]: string } = {}
-      recipeData.instructions.forEach((step: any) => {
-        if (step.is_key_step) {
-          keySteps[step.step_number.toString()] = step.instruction
-        }
-      })
-
-      const visualsResponse = await fetch(
-        `${config.API_BASE_URL}/api/visuals`,
-        {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({ url: submitUrl, key_steps: keySteps }),
-        }
-      )
-
-      if (!visualsResponse.ok) {
-        throw new Error('Failed to extract visuals')
-      }
-
-      const visualsData = await visualsResponse.json()
-      setVisuals(visualsData)
     } catch (err) {
       setError(err instanceof Error ? err.message : 'An error occurred')
       setShowCache(true)
@@ -162,7 +133,6 @@ function App() {
               className="btn-secondary"
               onClick={() => {
                 setRecipe(null)
-                setVisuals(null)
                 setShowCache(true)
                 // Keep URL and VideoID so user can easily re-run or modify
               }}
@@ -182,7 +152,6 @@ function App() {
               </button>
             )}
           </div>
-          <RecipeView recipe={recipe} visuals={visuals} />
         </div>
       )}
     </div>

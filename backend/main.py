@@ -45,7 +45,6 @@ app.add_middleware(
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
-    expose_headers=["Content-Disposition", "Content-Type", "Content-Length"],
 )
 
 
@@ -223,13 +222,11 @@ async def clear_cache_step(video_id: str, step_name: str):
 @app.get("/api/cache/{video_id}/pdf")
 async def download_recipe_pdf(
     video_id: str, 
-    regenerate: bool = Query(False, description="Force regenerate PDF even if cached"),
-    inline: bool = Query(False, description="Display inline in browser instead of downloading")
+    regenerate: bool = Query(False, description="Force regenerate PDF even if cached")
 ):
     """
     Generate and download a PDF of the recipe.
     Uses cached PDF if available unless regenerate=true.
-    Set inline=true to display in browser instead of forcing download.
     """
     import pdf_service
     try:
@@ -247,18 +244,12 @@ async def download_recipe_pdf(
         filename = f"{safe_title}.pdf"
         
         # Return PDF with proper headers
-        headers = {}
-        if inline:
-            # Allow browser to display inline
-            headers["Content-Disposition"] = f"inline; filename={filename}"
-        else:
-            # Force download
-            headers["Content-Disposition"] = f"attachment; filename={filename}"
-        
         return Response(
             content=pdf_bytes,
             media_type="application/pdf",
-            headers=headers
+            headers={
+                "Content-Disposition": f"attachment; filename={filename}"
+            }
         )
         
     except ValueError as e:
