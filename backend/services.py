@@ -79,6 +79,9 @@ def get_transcript(video_id: str) -> List[str]:
             'writeautomaticsub': True,
             'subtitleslangs': ['en'],
             'quiet': True,
+            # Use multiple player clients to improve subtitle availability and
+            # reduce reliance on a local JS runtime.
+            'extractor_args': {'youtube': {'player_client': ['default', 'web', 'android']}},
         }
         
         with yt_dlp.YoutubeDL(ydl_opts) as ydl:
@@ -102,24 +105,48 @@ def get_transcript(video_id: str) -> List[str]:
             print(f"DEBUG: Fetching subtitles from {sub_url[:50]}...")
             import requests
             response = requests.get(sub_url)
+            content = response.text
 
-            try:
-                data = response.json()
-                text_segments = []
+            def parse_json_response(resp):
+                data = resp.json()
+                segments = []
                 if 'events' in data:
                     for event in data['events']:
                         if 'segs' in event:
                             for seg in event['segs']:
                                 if 'utf8' in seg and seg['utf8'].strip():
-                                    text_segments.append(seg['utf8'])
+                                    segments.append(seg['utf8'])
+                return segments
+
+            try:
+                text_segments = parse_json_response(response)
                 print(f"DEBUG: Extracted {len(text_segments)} segments")
                 cache_manager.save_step(video_id, "transcript", text_segments)
                 return text_segments
             except Exception as e:
                 print(f"DEBUG: Failed to parse subtitle JSON: {e}")
+                # Handle HLS playlists that need a second fetch
+                if content.lstrip().startswith("#EXTM3U"):
+                    print("DEBUG: Detected HLS subtitle playlist, following first media URL...")
+                    playlist_urls = [
+                        line.strip() for line in content.splitlines()
+                        if line.strip() and not line.startswith("#")
+                    ]
+                    if playlist_urls:
+                        sub_url = playlist_urls[0]
+                        print(f"DEBUG: Fetching subtitle segment {sub_url[:80]}...")
+                        response = requests.get(sub_url)
+                        content = response.text
+                        try:
+                            text_segments = parse_json_response(response)
+                            print(f"DEBUG: Extracted {len(text_segments)} segments from HLS subtitle")
+                            cache_manager.save_step(video_id, "transcript", text_segments)
+                            return text_segments
+                        except Exception as inner_e:
+                            print(f"DEBUG: HLS subtitle JSON parse failed: {inner_e}")
+
                 # Try to parse as VTT format if JSON fails
                 try:
-                    content = response.text
                     print(f"DEBUG: Response content type: {response.headers.get('content-type', 'unknown')}")
                     print(f"DEBUG: Response starts with: {content[:200]}...")
 

@@ -134,6 +134,17 @@
         break-inside: avoid;
       }
 
+      .ingredient-subheader {
+        font-family: 'Libre Baskerville', serif;
+        font-size: 18px;
+        font-weight: 700;
+        margin-top: 20px;
+        margin-bottom: 10px;
+        color: #1a1a1a;
+        text-transform: capitalize;
+        break-after: avoid;
+      }
+
       .instructions-section {
         margin-top: 30px;
       }
@@ -230,14 +241,45 @@
       <h2 class="section-title">
         Ingredients ({{ recipe.servings.lower().replace('serves: ', 'for ') }})
       </h2>
-      <ul class="ingredients-list">
-        {% for ingredient in recipe.ingredients %}
-        <li class="ingredient-item">
-          {{ ingredient.quantity }} {{ ingredient.unit }} {{
-          ingredient.ingredient }}
-        </li>
-        {% endfor %}
-      </ul>
+      
+      {# Group ingredients by purpose #}
+      {% set ingredient_groups = {} %}
+      {% for ingredient in recipe.ingredients %}
+        {% set purpose = ingredient.purpose | default('cooking') %}
+        {% if purpose not in ingredient_groups %}
+          {% set _ = ingredient_groups.update({purpose: []}) %}
+        {% endif %}
+        {% set _ = ingredient_groups[purpose].append(ingredient) %}
+      {% endfor %}
+      
+      {# Display "cooking" purpose ingredients first without a subheader #}
+      {% if 'cooking' in ingredient_groups %}
+        <ul class="ingredients-list">
+          {% for ingredient in ingredient_groups['cooking'] %}
+          <li class="ingredient-item">
+            {% if ingredient.quantity != '-' %}{{ ingredient.quantity }}{% endif %}
+            {% if ingredient.unit != '-' %}{{ ingredient.unit }}{% endif %}
+            {{ ingredient.ingredient }}
+          </li>
+          {% endfor %}
+        </ul>
+      {% endif %}
+      
+      {# Display other purposes with subheaders #}
+      {% for purpose, ingredients in ingredient_groups.items() %}
+        {% if purpose != 'cooking' %}
+          <h3 class="ingredient-subheader">{{ purpose | capitalize }}</h3>
+          <ul class="ingredients-list">
+            {% for ingredient in ingredients %}
+            <li class="ingredient-item">
+              {% if ingredient.quantity != '-' %}{{ ingredient.quantity }}{% endif %}
+              {% if ingredient.unit != '-' %}{{ ingredient.unit }}{% endif %}
+              {{ ingredient.ingredient }}
+            </li>
+            {% endfor %}
+          </ul>
+        {% endif %}
+      {% endfor %}
 
       <!-- Instructions Section -->
       <div class="instructions-section">

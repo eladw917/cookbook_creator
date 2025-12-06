@@ -40,7 +40,9 @@ Prioritize the best demonstration of each step that provides maximum clarity and
 - Identify the **peak moment** of the cooking action, not the beginning
 - Add 3-5 seconds buffer from when the step is first mentioned to when it's actually performed
 - Focus on actual execution rather than preparation or discussion phases
-- For dish visuals, add 2-3 seconds after any transition to ensure a stable, fully-revealed shot
+- When giving a time range, choose it so the **middle of the range** (where we capture a frame) shows the clearest, most stable view of the action or dish
+- Avoid ranges where the midpoint lands on a transition, motion blur, or a hand blocking the food; shift the range so the midpoint is clean and well-lit
+- For dish visuals, add 2-3 seconds after any transition to ensure a stable, fully-revealed shot and make sure the midpoint is the prettiest plated view
 
 ### Quality Assurance:
 - Only provide timestamps when you can confidently identify the step
@@ -57,9 +59,9 @@ Prioritize the best demonstration of each step that provides maximum clarity and
 - **Keys**:
   - Use exact step numbers from the input JSON (maintain as strings)
   - Use `"dish_visual"` as the key for the completed dish timestamp
-- **Values**: Time range strings in "M:SS-M:SS" or "MM:SS-MM:SS" format (5-10 second ranges)
-  - Example: "1:23-1:28" means the action occurs somewhere between 1:23 and 1:28
-  - Provide a range that captures the peak action moment
+- **Values**: Time range strings in "M:SS-M:SS" or "MM:SS-MM:SS" format using **short, 3-5 second ranges**
+  - Example: "1:23-1:27" means the action occurs somewhere between 1:23 and 1:27
+  - Provide a range that captures the peak action moment with a clean midpoint
 - **Unknown Steps**: Use `null` for steps that cannot be confidently identified
 - **JSON Standards**: Proper quotation marks, commas, and bracket formatting
 - **Key Order**: Always place `"dish_visual"` as the LAST key in the JSON object
