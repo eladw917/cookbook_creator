@@ -66,10 +66,6 @@ export default function PDFView({ videoId }: PDFViewProps) {
                 onLoadSuccess={onDocumentLoadSuccess}
                 onLoadError={onDocumentLoadError}
                 loading={<div>Loading PDF document...</div>}
-                options={{
-                    cMapUrl: `https://cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjs.version}/cmaps/`,
-                    standardFontDataUrl: `https://cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjs.version}/standard_fonts/`,
-                }}
             >
                 <div className="pdf-spread">
                     {numPages >= 1 && (
