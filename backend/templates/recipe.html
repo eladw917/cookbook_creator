@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>{{ recipe.title }}</title>
     <style>
-      @import url('https://fonts.googleapis.com/css2?family=Libre+Baskerville:wght@400;700&family=Open+Sans:wght@400;600&display=swap');
+      @import url('https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@400;500;600;700&family=Lora:wght@400;500;600&display=swap');
 
       * {
         margin: 0;
@@ -19,9 +19,9 @@
       }
 
       body {
-        font-family: 'Open Sans', sans-serif;
-        line-height: 1.6;
-        color: #333;
+        font-family: 'Lora', serif;
+        line-height: 1.8;
+        color: #3A2919;
         background: white;
       }
 
@@ -44,109 +44,134 @@
       }
 
       .hero-content {
-        padding: 40px 60px;
+        padding: 50px 70px;
         flex: 1;
         display: flex;
         flex-direction: column;
         justify-content: space-between;
+        background: #FFF9F3;
       }
 
       .hero-title {
-        font-family: 'Libre Baskerville', serif;
-        font-size: 48px;
-        font-weight: 700;
-        line-height: 1.2;
-        margin-bottom: 20px;
-        color: #1a1a1a;
+        font-family: 'Cormorant Garamond', serif;
+        font-size: 52px;
+        font-weight: 600;
+        line-height: 1.15;
+        margin-bottom: 24px;
+        color: #3A2919;
+        letter-spacing: -0.5px;
       }
 
       .hero-description {
-        font-size: 16px;
-        line-height: 1.8;
-        color: #555;
+        font-size: 17px;
+        line-height: 1.9;
+        color: #5A4A3A;
         margin-bottom: auto;
+        max-width: 90%;
       }
 
       .time-badges {
         display: flex;
-        gap: 40px;
-        margin-top: 30px;
+        gap: 24px;
+        margin-top: 40px;
       }
 
       .time-badge {
+        background: #F5E6D3;
+        padding: 18px 28px;
+        border-radius: 2px;
+        border: 1px solid #D4936B;
+        flex: 1;
         text-align: center;
       }
 
       .time-badge-label {
-        font-size: 12px;
+        font-size: 11px;
         text-transform: uppercase;
-        letter-spacing: 1px;
-        color: #888;
-        margin-bottom: 5px;
+        letter-spacing: 1.5px;
+        color: #8B4513;
+        margin-bottom: 8px;
         font-weight: 600;
+        font-family: 'Lora', serif;
       }
 
       .time-badge-value {
-        font-size: 28px;
-        font-weight: 700;
-        color: #1a1a1a;
+        font-size: 26px;
+        font-weight: 600;
+        color: #C85A3F;
+        font-family: 'Cormorant Garamond', serif;
       }
 
       /* Page 2+: Recipe Content */
       .content-page {
         width: 210mm;
         min-height: 297mm;
-        padding: 50px 40px;
+        padding: 60px 50px;
         column-count: 2;
-        column-gap: 40px;
+        column-gap: 50px;
         column-fill: auto;
+        background: #FFF9F3;
       }
 
       .section-title {
-        font-family: 'Libre Baskerville', serif;
-        font-size: 24px;
-        font-weight: 700;
-        margin-bottom: 15px;
+        font-family: 'Cormorant Garamond', serif;
+        font-size: 28px;
+        font-weight: 600;
+        margin-bottom: 20px;
         margin-top: 0;
-        padding-bottom: 10px;
-        border-bottom: 2px solid #1a1a1a;
+        padding-bottom: 12px;
+        border-bottom: 2px solid #C85A3F;
+        color: #3A2919;
+        letter-spacing: -0.3px;
         break-after: avoid;
       }
 
       .servings-info {
         font-size: 14px;
-        color: #666;
-        margin-bottom: 15px;
+        color: #5A4A3A;
+        margin-bottom: 18px;
         break-after: avoid;
+        font-style: italic;
       }
 
       .ingredients-list {
         list-style: none;
         padding: 0;
-        margin: 0 0 30px 0;
+        margin: 0 0 35px 0;
       }
 
       .ingredient-item {
         font-size: 15px;
-        line-height: 1.8;
-        margin-bottom: 8px;
-        color: #333;
+        line-height: 2;
+        margin-bottom: 10px;
+        color: #3A2919;
         break-inside: avoid;
+        padding-left: 20px;
+        position: relative;
+      }
+
+      .ingredient-item::before {
+        content: '•';
+        position: absolute;
+        left: 0;
+        color: #D4936B;
+        font-size: 18px;
+        line-height: 2;
       }
 
       .ingredient-subheader {
-        font-family: 'Libre Baskerville', serif;
-        font-size: 18px;
-        font-weight: 700;
-        margin-top: 20px;
-        margin-bottom: 10px;
-        color: #1a1a1a;
+        font-family: 'Cormorant Garamond', serif;
+        font-size: 20px;
+        font-weight: 600;
+        margin-top: 28px;
+        margin-bottom: 14px;
+        color: #C85A3F;
         text-transform: capitalize;
         break-after: avoid;
       }
 
       .instructions-section {
-        margin-top: 30px;
+        margin-top: 35px;
       }
 
       .instructions-list {
@@ -158,8 +183,8 @@
 
       .instruction-item {
         position: relative;
-        padding-left: 50px;
-        margin-bottom: 18px;
+        padding-left: 52px;
+        margin-bottom: 22px;
         break-inside: avoid;
       }
 
@@ -169,30 +194,31 @@
         position: absolute;
         left: 0;
         top: 0;
-        width: 32px;
-        height: 32px;
-        background: #1a1a1a;
-        color: white;
+        width: 36px;
+        height: 36px;
+        background: #C85A3F;
+        color: #FFF9F3;
         border-radius: 50%;
         display: flex;
         align-items: center;
         justify-content: center;
-        font-weight: 700;
-        font-size: 14px;
+        font-weight: 600;
+        font-size: 16px;
+        font-family: 'Cormorant Garamond', serif;
       }
 
       .instruction-text {
         font-size: 15px;
-        line-height: 1.7;
-        color: #333;
+        line-height: 1.9;
+        color: #3A2919;
       }
 
       .step-image {
         width: 100%;
         max-width: 100%;
         height: auto;
-        border-radius: 8px;
-        margin-top: 10px;
+        border-radius: 3px;
+        margin-top: 12px;
         display: block;
         break-inside: avoid;
       }
