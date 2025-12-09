@@ -5,6 +5,10 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>{{ recipe.title }}</title>
     <style>
+      :root {
+        /* Bottom margin is now handled at PDF generation level */
+        --page-bottom-padding: 0mm;
+      }
       @import url('https://fonts.googleapis.com/css2?family=Libre+Baskerville:wght@400;700&family=Open+Sans:wght@400;600&display=swap');
 
       * {
@@ -28,12 +32,15 @@
       /* Page 1: Hero Page */
       .hero-page {
         width: 210mm;
-        height: 297mm;
+        min-height: 277mm;
+        max-height: 277mm;
+        box-sizing: border-box;
         page-break-after: always;
         display: flex;
         flex-direction: column;
         position: relative;
         background: white;
+        margin-bottom: 20mm;
       }
 
       .hero-image {
@@ -95,13 +102,17 @@
       /* Page 2+: Recipe Content */
       .content-page {
         width: 210mm;
-        height: 297mm;
-        padding: 50px 40px;
+        min-height: 277mm;
+        max-height: 277mm;
+        padding: 50px 40px 50px 40px;
         display: flex;
         gap: 0;
         page-break-after: always;
         align-items: flex-start;
         position: relative;
+        box-sizing: border-box;
+        overflow: hidden;
+        margin-bottom: 20mm;
       }
 
       /* Column Layout */
@@ -130,8 +141,8 @@
       }
 
       .instructions-column .instructions-list {
-        break-inside: auto;
-        page-break-inside: auto;
+        break-inside: avoid;
+        page-break-inside: avoid;
       }
 
       /* Overflow ingredients container in right column */
@@ -144,9 +155,11 @@
       /* Overflow pages for instructions that don't fit on page 2 */
       .overflow-page {
         width: 210mm;
-        min-height: 297mm;
+        min-height: 277mm;
         padding: 80px 40px 50px 40px;
         page-break-before: always;
+        box-sizing: border-box;
+        margin-bottom: 20mm;
       }
 
       .overflow-page .instructions-list {
@@ -254,24 +267,15 @@
         <div class="time-badges">
           <div class="time-badge">
             <div class="time-badge-label">PREP</div>
-            <div class="time-badge-value">
-              {{ recipe.prep_time.replace(' minutes', '').replace('minutes', '')
-              }} minutes
-            </div>
+            <div class="time-badge-value">{{ recipe.prep_time }}</div>
           </div>
           <div class="time-badge">
             <div class="time-badge-label">COOK</div>
-            <div class="time-badge-value">
-              {{ recipe.cook_time.replace(' minutes', '').replace('minutes', '')
-              }} minutes
-            </div>
+            <div class="time-badge-value">{{ recipe.cook_time }}</div>
           </div>
           <div class="time-badge">
             <div class="time-badge-label">TOTAL</div>
-            <div class="time-badge-value">
-              {{ recipe.total_time.replace(' minutes', '').replace('minutes',
-              '') }} minutes
-            </div>
+            <div class="time-badge-value">{{ recipe.total_time }}</div>
           </div>
         </div>
       </div>

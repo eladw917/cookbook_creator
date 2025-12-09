@@ -284,6 +284,8 @@ async def generate_recipe_pdf(video_id: str) -> bytes:
             # Set content and wait for fonts/images to load
             print("DEBUG: Setting page content for measurement...")
             await page.set_content(initial_html, wait_until="networkidle")
+            # Ensure web fonts are fully loaded before measuring heights
+            await page.evaluate("() => document.fonts.ready")
             
             # Measure content and determine splits
             split_data = await measure_content_and_split(page, recipe)
@@ -299,6 +301,8 @@ async def generate_recipe_pdf(video_id: str) -> bytes:
             )
             
             await page.set_content(final_html, wait_until="networkidle")
+            # Wait for fonts to settle before PDF capture to avoid reflow
+            await page.evaluate("() => document.fonts.ready")
             
             # Generate PDF with A4 size
             print("DEBUG: Generating PDF...")
