@@ -16,6 +16,7 @@ from prompts import recipe_extraction, timestamp_extraction
 api_key = os.getenv("GEMINI_API_KEY") or os.getenv("GOOGLE_API_KEY")
 if not api_key:
     raise ValueError("API key not found. Please set GEMINI_API_KEY or GOOGLE_API_KEY environment variable.")
+print(f"DEBUG: Using API key: {api_key[:20]}...{api_key[-4:]}")
 client = genai.Client(api_key=api_key)
 
 
@@ -191,7 +192,7 @@ def extract_recipe_gemini(input_data: dict, video_url: str) -> dict:
     try:
         print("DEBUG: Sending request to Gemini...")
         response = client.models.generate_content(
-            model='models/gemini-2.0-flash',
+            model='models/gemini-2.5-flash',
             contents=prompt,
         )
         print("DEBUG: Received response from Gemini")

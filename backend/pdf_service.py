@@ -54,6 +54,41 @@ def get_step_images_data_uris(video_id: str) -> dict:
     return step_images
 
 
+def ensure_hero_image(video_id: str, recipe: dict) -> Optional[str]:
+    """
+    Ensure we have a hero image; if missing, try to regenerate the dish_visual frame.
+    """
+    hero_image = get_hero_image_data_uri(video_id)
+    if hero_image:
+        return hero_image
+
+    # Attempt regeneration using cached timestamps
+    timestamps = cache_manager.load_step(video_id, "timestamps") or {}
+    dish_timestamp = timestamps.get("dish_visual")
+    if not dish_timestamp or dish_timestamp == "null":
+        print(f"DEBUG: No dish_visual timestamp available to regenerate hero image for {video_id}")
+        return None
+
+    # Build video URL (recipe cache may not contain it)
+    video_url = recipe.get("video_url") or f"https://www.youtube.com/watch?v={video_id}"
+
+    try:
+        from services import extract_best_frame  # Lazy import to avoid circular dependency
+        regenerated_base64 = extract_best_frame(
+            video_url,
+            dish_timestamp,
+            "Visual reference",
+            "dish_visual"
+        )
+        if regenerated_base64:
+            print(f"DEBUG: Regenerated dish_visual frame for {video_id}")
+            return f"data:image/jpeg;base64,{regenerated_base64}"
+    except Exception as e:
+        print(f"DEBUG: Failed to regenerate hero image for {video_id}: {e}")
+
+    return None
+
+
 async def generate_recipe_pdf(video_id: str) -> bytes:
     """
     Generate a PDF for a recipe using cached data.
@@ -77,8 +112,8 @@ async def generate_recipe_pdf(video_id: str) -> bytes:
     
     metadata = cache_manager.load_step(video_id, "metadata")
     
-    # Get hero image as data URI
-    hero_image = get_hero_image_data_uri(video_id)
+    # Get hero image as data URI (regenerate dish_visual if missing)
+    hero_image = ensure_hero_image(video_id, recipe)
     
     # Get step images as data URIs
     step_images = get_step_images_data_uris(video_id)

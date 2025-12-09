@@ -7,11 +7,12 @@ from typing import Optional
 import io
 from dotenv import load_dotenv
 
-# Load environment variables from .env file if it exists
+# Load environment variables from .env file BEFORE importing services
 import os
 if os.path.exists('.env'):
     load_dotenv()
 
+# Now import services after .env is loaded
 from services import (
     get_video_metadata,
     get_transcript,
