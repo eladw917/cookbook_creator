@@ -89,6 +89,150 @@ def ensure_hero_image(video_id: str, recipe: dict) -> Optional[str]:
     return None
 
 
+async def measure_content_and_split(page, recipe: dict) -> dict:
+    """
+    Measure rendered content heights and determine optimal splits.
+    
+    Returns dict with:
+        - left_column_ingredients: list of ingredient indices for left column
+        - right_column_ingredients: list of ingredient indices for right column  
+        - first_page_instructions: list of instruction indices for first page
+        - overflow_instructions: list of instruction indices for overflow pages
+    """
+    print("DEBUG: Measuring content heights...")
+    
+    # A4 page dimensions in pixels at 96 DPI
+    PAGE_HEIGHT = 1123  # 297mm at 96 DPI
+    PADDING_TOP_BOTTOM = 189  # 50px top + bottom padding
+    AVAILABLE_HEIGHT = PAGE_HEIGHT - PADDING_TOP_BOTTOM
+    
+    # Measure ingredients column height
+    ingredients_height = await page.evaluate("""
+        () => {
+            const ingredientsCol = document.querySelector('.ingredients-column');
+            return ingredientsCol ? ingredientsCol.scrollHeight : 0;
+        }
+    """)
+    
+    print(f"DEBUG: Ingredients column height: {ingredients_height}px, Available: {AVAILABLE_HEIGHT}px")
+    
+    # Check if ingredients overflow
+    ingredients_overflow = ingredients_height > AVAILABLE_HEIGHT
+    
+    split_data = {
+        'ingredients_overflow': ingredients_overflow,
+        'left_column_ingredients': list(range(len(recipe['ingredients']))),
+        'right_column_ingredients': [],
+        'first_page_instructions': list(range(len(recipe['instructions']))),
+        'overflow_instructions': []  # Always empty - all instructions fit on page 2
+    }
+    
+    if ingredients_overflow:
+        print("DEBUG: Ingredients overflow detected, measuring split point...")
+        
+        # Measure header heights separately
+        header_height = await page.evaluate("""
+            () => {
+                const title = document.querySelector('.ingredients-column .section-title');
+                const servings = document.querySelector('.ingredients-column .servings-info');
+                return (title ? title.offsetHeight : 0) + (servings ? servings.offsetHeight : 0);
+            }
+        """)
+        
+        # Measure each ingredient item (excluding headers)
+        ingredient_heights = await page.evaluate("""
+            () => {
+                const items = document.querySelectorAll('.ingredients-column .ingredient-item, .ingredients-column .ingredient-subheader');
+                return Array.from(items).map(item => ({
+                    height: item.offsetHeight,
+                    isSubheader: item.classList.contains('ingredient-subheader')
+                }));
+            }
+        """)
+        
+        print(f"DEBUG: Header height: {header_height}px, Ingredient items: {len(ingredient_heights)}")
+        
+        # Find split point for ingredients
+        # We need to find where to split so left column doesn't overflow
+        cumulative_height = header_height
+        ingredient_split = 0
+        ingredient_count = 0
+        
+        for i, item_data in enumerate(ingredient_heights):
+            # Check if adding this item would exceed available height
+            if cumulative_height + item_data['height'] > AVAILABLE_HEIGHT:
+                # Don't add this item - split before it
+                break
+            # This item fits, add it
+            cumulative_height += item_data['height']
+            if not item_data['isSubheader']:
+                ingredient_count += 1
+        
+        # ingredient_count now contains the number of actual ingredients that fit in left column
+        ingredient_split = ingredient_count
+        
+        split_data['left_column_ingredients'] = list(range(ingredient_split))
+        split_data['right_column_ingredients'] = list(range(ingredient_split, len(recipe['ingredients'])))
+        
+        print(f"DEBUG: Split ingredients at index {ingredient_split} (total ingredients: {len(recipe['ingredients'])}, left: {len(split_data['left_column_ingredients'])}, right: {len(split_data['right_column_ingredients'])})")
+        
+        # Calculate actual height of overflow ingredients
+        # Sum up the heights of items after the split point
+        overflow_height = 0
+        counting_overflow = False
+        ingredient_counter = 0
+        
+        for i, item_data in enumerate(ingredient_heights):
+            if not item_data['isSubheader']:
+                if ingredient_counter >= ingredient_split:
+                    overflow_height += item_data['height']
+                ingredient_counter += 1
+            elif ingredient_counter >= ingredient_split:
+                # Include subheaders that are in the overflow section
+                overflow_height += item_data['height']
+        
+        # Add space for "Ingredients (continued)" header and container padding
+        overflow_container_height = overflow_height + 80 + 40  # title + padding
+        remaining_right_column_height = AVAILABLE_HEIGHT - overflow_container_height
+        
+        print(f"DEBUG: Overflow ingredients height: {overflow_height}px, Container: {overflow_container_height}px, Remaining: {remaining_right_column_height}px")
+        
+    else:
+        # No ingredient overflow, full right column available for instructions
+        remaining_right_column_height = AVAILABLE_HEIGHT
+        print("DEBUG: No ingredient overflow, full right column available")
+    
+    # Measure instruction heights to see how many fit in remaining space
+    instruction_heights = await page.evaluate("""
+        () => {
+            const items = document.querySelectorAll('.instructions-column .instruction-item');
+            return Array.from(items).map(item => item.offsetHeight);
+        }
+    """)
+    
+    # Calculate how many instructions fit in remaining right column space
+    cumulative_height = 80  # Account for "Instructions" title
+    instruction_split = 0
+    
+    for i, height in enumerate(instruction_heights):
+        if cumulative_height + height > remaining_right_column_height:
+            # This instruction won't fit, split here
+            break
+        cumulative_height += height
+        instruction_split = i + 1
+    
+    # If all fit or we couldn't measure, include all on first page
+    if instruction_split == 0:
+        instruction_split = len(recipe['instructions'])
+    
+    split_data['first_page_instructions'] = list(range(instruction_split))
+    split_data['overflow_instructions'] = list(range(instruction_split, len(recipe['instructions'])))
+    
+    print(f"DEBUG: Instructions split - First page: {instruction_split}, Overflow: {len(recipe['instructions']) - instruction_split}")
+    
+    return split_data
+
+
 async def generate_recipe_pdf(video_id: str) -> bytes:
     """
     Generate a PDF for a recipe using cached data.
@@ -118,16 +262,17 @@ async def generate_recipe_pdf(video_id: str) -> bytes:
     # Get step images as data URIs
     step_images = get_step_images_data_uris(video_id)
     
-    # Render HTML template
+    # First pass: Render initial HTML to measure content
     template = jinja_env.get_template("recipe.html")
-    html_content = template.render(
+    initial_html = template.render(
         recipe=recipe,
         metadata=metadata,
         hero_image=hero_image,
-        step_images=step_images
+        step_images=step_images,
+        split_data=None  # Initial render without splits
     )
     
-    print("DEBUG: Rendered HTML template")
+    print("DEBUG: Rendered initial HTML template for measurement")
     
     # Generate PDF using Playwright
     try:
@@ -137,8 +282,23 @@ async def generate_recipe_pdf(video_id: str) -> bytes:
             page = await browser.new_page()
             
             # Set content and wait for fonts/images to load
-            print("DEBUG: Setting page content...")
-            await page.set_content(html_content, wait_until="networkidle")
+            print("DEBUG: Setting page content for measurement...")
+            await page.set_content(initial_html, wait_until="networkidle")
+            
+            # Measure content and determine splits
+            split_data = await measure_content_and_split(page, recipe)
+            
+            # Second pass: Re-render with split data
+            print("DEBUG: Re-rendering HTML with split data...")
+            final_html = template.render(
+                recipe=recipe,
+                metadata=metadata,
+                hero_image=hero_image,
+                step_images=step_images,
+                split_data=split_data
+            )
+            
+            await page.set_content(final_html, wait_until="networkidle")
             
             # Generate PDF with A4 size
             print("DEBUG: Generating PDF...")

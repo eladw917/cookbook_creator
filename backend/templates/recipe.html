@@ -95,95 +95,137 @@
       /* Page 2+: Recipe Content */
       .content-page {
         width: 210mm;
-        min-height: 297mm;
+        height: 297mm;
         padding: 50px 40px;
-        column-count: 2;
-        column-gap: 40px;
-        column-fill: auto;
+        display: flex;
+        gap: 0;
+        page-break-after: always;
+        align-items: flex-start;
+        position: relative;
+      }
+
+      /* Column Layout */
+      .ingredients-column {
+        width: 30%;
+        flex-shrink: 0;
+        padding: 20px;
+        margin-right: 30px;
+        background-color: #f5d5c8;
+        align-self: flex-start;
+      }
+
+      /* Wider ingredients column when overflow detected */
+      .ingredients-column.wide {
+        width: 40%;
+      }
+
+      .instructions-column {
+        flex: 1;
+        flex-shrink: 0;
+      }
+
+      .instructions-column .section-title {
+        break-after: avoid;
+        page-break-after: avoid;
+      }
+
+      .instructions-column .instructions-list {
+        break-inside: auto;
+        page-break-inside: auto;
+      }
+
+      /* Overflow ingredients container in right column */
+      .overflow-ingredients-container {
+        background-color: #f5d5c8;
+        padding: 15px;
+        margin-bottom: 20px;
+      }
+
+      /* Overflow pages for instructions that don't fit on page 2 */
+      .overflow-page {
+        width: 210mm;
+        min-height: 297mm;
+        padding: 80px 40px 50px 40px;
+        page-break-before: always;
+      }
+
+      .overflow-page .instructions-list {
+        list-style: disc;
+        padding-left: 20px;
+        margin: 0;
+      }
+
+      .overflow-page .instruction-item {
+        margin-bottom: 8px;
+        break-inside: avoid;
+        padding-left: 5px;
       }
 
       .section-title {
         font-family: 'Libre Baskerville', serif;
-        font-size: 24px;
+        font-size: 18px;
         font-weight: 700;
-        margin-bottom: 15px;
+        margin-bottom: 10px;
         margin-top: 0;
-        padding-bottom: 10px;
+        padding-bottom: 6px;
         border-bottom: 2px solid #1a1a1a;
         break-after: avoid;
+        text-transform: capitalize;
       }
 
       .servings-info {
-        font-size: 14px;
+        font-size: 11px;
         color: #666;
-        margin-bottom: 15px;
+        margin-bottom: 10px;
         break-after: avoid;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
       }
 
       .ingredients-list {
         list-style: none;
         padding: 0;
-        margin: 0 0 30px 0;
+        margin: 0 0 8px 0;
       }
 
       .ingredient-item {
-        font-size: 15px;
-        line-height: 1.8;
-        margin-bottom: 8px;
+        font-size: 12px;
+        line-height: 1.4;
+        margin-bottom: 3px;
         color: #333;
         break-inside: avoid;
       }
 
       .ingredient-subheader {
         font-family: 'Libre Baskerville', serif;
-        font-size: 18px;
+        font-size: 14px;
         font-weight: 700;
-        margin-top: 20px;
-        margin-bottom: 10px;
+        margin-top: 10px;
+        margin-bottom: 4px;
         color: #1a1a1a;
         text-transform: capitalize;
         break-after: avoid;
       }
 
-      .instructions-section {
-        margin-top: 30px;
-      }
-
       .instructions-list {
-        list-style: none;
-        padding: 0;
+        list-style: disc;
+        padding-left: 20px;
         margin: 0;
-        counter-reset: step-counter;
       }
 
       .instruction-item {
-        position: relative;
-        padding-left: 50px;
-        margin-bottom: 18px;
+        margin-bottom: 8px;
         break-inside: avoid;
+        padding-left: 5px;
       }
 
-      .instruction-item::before {
-        counter-increment: step-counter;
-        content: counter(step-counter);
-        position: absolute;
-        left: 0;
-        top: 0;
-        width: 32px;
-        height: 32px;
-        background: #1a1a1a;
-        color: white;
-        border-radius: 50%;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        font-weight: 700;
-        font-size: 14px;
+      .instruction-item::marker {
+        color: #1a1a1a;
       }
 
       .instruction-text {
-        font-size: 15px;
-        line-height: 1.7;
+        font-size: 13px;
+        line-height: 1.5;
         color: #333;
       }
 
@@ -235,57 +277,104 @@
       </div>
     </div>
 
-    <!-- Page 2+: Content with Two Columns -->
+    <!-- Page 2: Content with Two Columns -->
+    {# Determine splits based on split_data from Python or use defaults #} {% if
+    split_data %} {% set left_ingredients = [] %} {% set right_ingredients = []
+    %} {% for idx in split_data.left_column_ingredients %} {% set _ =
+    left_ingredients.append(recipe.ingredients[idx]) %} {% endfor %} {% for idx
+    in split_data.right_column_ingredients %} {% set _ =
+    right_ingredients.append(recipe.ingredients[idx]) %} {% endfor %} {% set
+    first_page_steps = [] %} {% set overflow_steps = [] %} {% for idx in
+    split_data.first_page_instructions %} {% set _ =
+    first_page_steps.append(recipe.instructions[idx]) %} {% endfor %} {% for idx
+    in split_data.overflow_instructions %} {% set _ =
+    overflow_steps.append(recipe.instructions[idx]) %} {% endfor %} {% set
+    has_right_ingredients = split_data.ingredients_overflow %} {% else %} {#
+    Default: all ingredients in left, all instructions on page 2 #} {% set
+    left_ingredients = recipe.ingredients %} {% set right_ingredients = [] %} {%
+    set first_page_steps = recipe.instructions %} {% set overflow_steps = [] %}
+    {% set has_right_ingredients = false %} {% endif %}
+
     <div class="content-page">
-      <!-- Ingredients Section -->
-      <h2 class="section-title">
-        Ingredients ({{ recipe.servings.lower().replace('serves: ', 'for ') }})
-      </h2>
-      
-      {# Group ingredients by purpose #}
-      {% set ingredient_groups = {} %}
-      {% for ingredient in recipe.ingredients %}
-        {% set purpose = ingredient.purpose | default('cooking') %}
-        {% if purpose not in ingredient_groups %}
-          {% set _ = ingredient_groups.update({purpose: []}) %}
-        {% endif %}
-        {% set _ = ingredient_groups[purpose].append(ingredient) %}
-      {% endfor %}
-      
-      {# Display "cooking" purpose ingredients first without a subheader #}
-      {% if 'cooking' in ingredient_groups %}
+      <!-- Left Column: Ingredients -->
+      <div
+        class="ingredients-column{% if has_right_ingredients %} wide{% endif %}"
+      >
+        <h2 class="section-title">Ingredients</h2>
+        <p class="servings-info">{{ recipe.servings }}</p>
+
+        {# Group left column ingredients by purpose #} {% set ingredient_groups
+        = {} %} {% for ingredient in left_ingredients %} {% set purpose =
+        ingredient.purpose | default('cooking') %} {% if purpose not in
+        ingredient_groups %} {% set _ = ingredient_groups.update({purpose: []})
+        %} {% endif %} {% set _ = ingredient_groups[purpose].append(ingredient)
+        %} {% endfor %} {# Display "cooking" purpose ingredients first without a
+        subheader #} {% if 'cooking' in ingredient_groups %}
         <ul class="ingredients-list">
           {% for ingredient in ingredient_groups['cooking'] %}
           <li class="ingredient-item">
-            {% if ingredient.quantity != '-' %}{{ ingredient.quantity }}{% endif %}
-            {% if ingredient.unit != '-' %}{{ ingredient.unit }}{% endif %}
+            {% if ingredient.quantity != '-' %}{{ ingredient.quantity }}{% endif
+            %} {% if ingredient.unit != '-' %}{{ ingredient.unit }}{% endif %}
             {{ ingredient.ingredient }}
           </li>
           {% endfor %}
         </ul>
-      {% endif %}
-      
-      {# Display other purposes with subheaders #}
-      {% for purpose, ingredients in ingredient_groups.items() %}
-        {% if purpose != 'cooking' %}
+        {% endif %} {# Display other purposes with subheaders #} {% for purpose,
+        ingredients in ingredient_groups.items() %} {% if purpose != 'cooking'
+        %}
+        <h3 class="ingredient-subheader">{{ purpose | capitalize }}</h3>
+        <ul class="ingredients-list">
+          {% for ingredient in ingredients %}
+          <li class="ingredient-item">
+            {% if ingredient.quantity != '-' %}{{ ingredient.quantity }}{% endif
+            %} {% if ingredient.unit != '-' %}{{ ingredient.unit }}{% endif %}
+            {{ ingredient.ingredient }}
+          </li>
+          {% endfor %}
+        </ul>
+        {% endif %} {% endfor %}
+      </div>
+
+      <!-- Right Column: Overflow Ingredients (if any) + Instructions -->
+      <div class="instructions-column">
+        {# If ingredients overflow, show them first in right column #} {% if
+        has_right_ingredients and right_ingredients %}
+        <div class="overflow-ingredients-container">
+          <h2 class="section-title">Ingredients (continued)</h2>
+          {% set right_ingredient_groups = {} %} {% for ingredient in
+          right_ingredients %} {% set purpose = ingredient.purpose |
+          default('cooking') %} {% if purpose not in right_ingredient_groups %}
+          {% set _ = right_ingredient_groups.update({purpose: []}) %} {% endif
+          %} {% set _ = right_ingredient_groups[purpose].append(ingredient) %}
+          {% endfor %} {% if 'cooking' in right_ingredient_groups %}
+          <ul class="ingredients-list">
+            {% for ingredient in right_ingredient_groups['cooking'] %}
+            <li class="ingredient-item">
+              {% if ingredient.quantity != '-' %}{{ ingredient.quantity }}{%
+              endif %} {% if ingredient.unit != '-' %}{{ ingredient.unit }}{%
+              endif %} {{ ingredient.ingredient }}
+            </li>
+            {% endfor %}
+          </ul>
+          {% endif %} {% for purpose, ingredients in
+          right_ingredient_groups.items() %} {% if purpose != 'cooking' %}
           <h3 class="ingredient-subheader">{{ purpose | capitalize }}</h3>
           <ul class="ingredients-list">
             {% for ingredient in ingredients %}
             <li class="ingredient-item">
-              {% if ingredient.quantity != '-' %}{{ ingredient.quantity }}{% endif %}
-              {% if ingredient.unit != '-' %}{{ ingredient.unit }}{% endif %}
-              {{ ingredient.ingredient }}
+              {% if ingredient.quantity != '-' %}{{ ingredient.quantity }}{%
+              endif %} {% if ingredient.unit != '-' %}{{ ingredient.unit }}{%
+              endif %} {{ ingredient.ingredient }}
             </li>
             {% endfor %}
           </ul>
-        {% endif %}
-      {% endfor %}
-
-      <!-- Instructions Section -->
-      <div class="instructions-section">
+          {% endif %} {% endfor %}
+        </div>
+        {% endif %} {# Instructions start here (below overflow ingredients if
+        any) #}
         <h2 class="section-title">Instructions</h2>
-        <ol class="instructions-list">
-          {% for instruction in recipe.instructions %}
+        <ul class="instructions-list">
+          {% for instruction in first_page_steps %}
           <li class="instruction-item">
             <div class="instruction-text">{{ instruction.instruction }}</div>
             {% if step_images and
@@ -298,8 +387,30 @@
             {% endif %}
           </li>
           {% endfor %}
-        </ol>
+        </ul>
       </div>
     </div>
+
+    <!-- Overflow Pages: Full Width Instructions (if they don't fit on page 2) -->
+    {% if overflow_steps and overflow_steps|length > 0 %}
+    <div class="overflow-page">
+      <h2 class="section-title">Instructions (continued)</h2>
+      <ul class="instructions-list">
+        {% for instruction in overflow_steps %}
+        <li class="instruction-item">
+          <div class="instruction-text">{{ instruction.instruction }}</div>
+          {% if step_images and step_images.get(instruction.step_number|string)
+          %}
+          <img
+            src="{{ step_images[instruction.step_number|string] }}"
+            alt="Step {{ instruction.step_number }}"
+            class="step-image"
+          />
+          {% endif %}
+        </li>
+        {% endfor %}
+      </ul>
+    </div>
+    {% endif %}
   </body>
 </html>
