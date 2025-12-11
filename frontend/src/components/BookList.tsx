@@ -44,6 +44,38 @@ export default function BookList() {
     }
   }
 
+  const handleDownloadBook = async (bookId: number, name: string) => {
+    try {
+      const token = await getToken()
+      const response = await fetch(
+        `${config.API_BASE_URL}/api/books/${bookId}/pdf?download=true`,
+        {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        }
+      )
+
+      if (!response.ok) {
+        const error = await response.json().catch(() => ({}))
+        throw new Error(error.detail || 'Failed to download book')
+      }
+
+      const blob = await response.blob()
+      const url = window.URL.createObjectURL(blob)
+      const link = document.createElement('a')
+      link.href = url
+      const safeName = name.replace(/[^a-zA-Z0-9 _-]/g, '').replace(/\s+/g, '_')
+      link.download = `${safeName || 'cookbook'}.pdf`
+      document.body.appendChild(link)
+      link.click()
+      link.remove()
+      window.URL.revokeObjectURL(url)
+    } catch (err) {
+      alert(err instanceof Error ? err.message : 'Failed to download book')
+    }
+  }
+
   const handleDeleteBook = async (bookId: number) => {
     if (!confirm('Are you sure you want to delete this book?')) {
       return
@@ -133,13 +165,12 @@ export default function BookList() {
                 Created {new Date(book.created_at).toLocaleDateString()}
               </p>
               <div className="book-actions">
-                <a
-                  href={`${config.API_BASE_URL}/api/books/${book.id}/pdf?download=true`}
+                <button
+                  onClick={() => handleDownloadBook(book.id, book.name)}
                   className="btn-primary"
-                  download
                 >
                   📥 Download PDF
-                </a>
+                </button>
                 <button
                   onClick={() => handleDeleteBook(book.id)}
                   className="btn-danger"

@@ -13,3 +13,4 @@ sqlalchemy>=2.0.0
 python-dotenv>=1.0.0
 clerk-backend-api>=1.0.0
 pyjwt>=2.8.0
+pypdf>=5.1.0

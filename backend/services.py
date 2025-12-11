@@ -189,6 +189,13 @@ def extract_recipe_gemini(input_data: dict, video_url: str) -> dict:
     
     prompt = recipe_extraction.RECIPE_EXTRACTION_PROMPT.format(input_data=json.dumps(input_data))
     
+    def clean_json(text: str) -> str:
+        """Remove trailing commas from JSON string"""
+        # Remove trailing commas before closing braces or brackets
+        text = re.sub(r',\s*}', '}', text)
+        text = re.sub(r',\s*]', ']', text)
+        return text
+    
     try:
         print("DEBUG: Sending request to Gemini...")
         response = client.models.generate_content(
@@ -201,17 +208,26 @@ def extract_recipe_gemini(input_data: dict, video_url: str) -> dict:
         json_pattern = r'```(?:json)?\s*(\{.*?\})\s*```'
         matches = re.findall(json_pattern, response.text, re.DOTALL)
         
+        json_text = None
         if matches:
             print("DEBUG: Found JSON block in response")
-            recipe = json.loads(matches[0])
-            cache_manager.save_step(video_id, "recipe", recipe)
-            return recipe
+            json_text = matches[0]
         else:
             print("DEBUG: No JSON block found, trying to parse full text")
-            # Try to parse the entire response as JSON
-            recipe = json.loads(response.text)
+            json_text = response.text
+        
+        # Clean and parse JSON
+        json_text = clean_json(json_text)
+        print(f"DEBUG: Parsing JSON (first 200 chars): {json_text[:200]}")
+        
+        try:
+            recipe = json.loads(json_text)
             cache_manager.save_step(video_id, "recipe", recipe)
             return recipe
+        except json.JSONDecodeError as je:
+            print(f"DEBUG: JSON parse error at position {je.pos}: {je.msg}")
+            print(f"DEBUG: Context around error: {json_text[max(0, je.pos-50):je.pos+50]}")
+            raise
             
     except Exception as e:
         print(f"DEBUG: Gemini extraction failed: {e}")

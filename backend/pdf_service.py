@@ -5,10 +5,12 @@ Generates recipe PDFs from cached data using Playwright for HTML→PDF conversio
 
 import os
 import base64
+from io import BytesIO
 from pathlib import Path
-from typing import Optional
+from typing import List, Optional
 from jinja2 import Environment, FileSystemLoader
 from playwright.async_api import async_playwright
+from pypdf import PdfReader, PdfWriter
 import cache_manager
 
 
@@ -374,4 +376,21 @@ async def generate_or_load_pdf(video_id: str, force_regenerate: bool = False) ->
     save_pdf_to_cache(video_id, pdf_bytes)
     
     return pdf_bytes
+
+
+def merge_pdfs(pdf_files: List[bytes]) -> bytes:
+    """
+    Merge multiple PDF byte streams into a single PDF, preserving order.
+    """
+    writer = PdfWriter()
+    
+    for pdf_bytes in pdf_files:
+        reader = PdfReader(BytesIO(pdf_bytes))
+        for page in reader.pages:
+            writer.add_page(page)
+    
+    output = BytesIO()
+    writer.write(output)
+    writer.close()
+    return output.getvalue()
 

@@ -384,11 +384,18 @@ async def download_book_pdf(
         if book_data["user_id"] != current_user.id:
             raise HTTPException(status_code=403, detail="Access denied")
         
-        # For now, return first recipe's PDF as placeholder
-        # TODO: Implement combined PDF generation for multiple recipes
         if book_data["recipes"]:
-            first_recipe = book_data["recipes"][0]
-            pdf_bytes = await pdf_service.generate_or_load_pdf(first_recipe["video_id"])
+            # Generate PDFs for each recipe in order and merge them
+            pdf_bytes_list = []
+            for recipe in book_data["recipes"]:
+                pdf_bytes_list.append(
+                    await pdf_service.generate_or_load_pdf(recipe["video_id"])
+                )
+            
+            if len(pdf_bytes_list) == 1:
+                pdf_bytes = pdf_bytes_list[0]
+            else:
+                pdf_bytes = pdf_service.merge_pdfs(pdf_bytes_list)
             
             # Sanitize filename
             safe_name = "".join(c for c in book_data["name"] if c.isalnum() or c in (' ', '-', '_')).strip()
