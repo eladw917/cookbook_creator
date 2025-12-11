@@ -1,329 +1,60 @@
-import { useState, useEffect, useRef } from 'react'
+import {
+  BrowserRouter as Router,
+  Routes,
+  Route,
+  Navigate,
+} from 'react-router-dom'
+import { AuthProvider } from './contexts/AuthContext'
 import './App.css'
-import UrlInput from './components/UrlInput'
-import CacheView from './components/CacheView'
-import PipelineStatus from './components/PipelineStatus'
-import PizzaTracker from './components/PizzaTracker'
-import config from './config'
-
-export interface Recipe {
-  title: string
-  servings: string
-  prep_time: string
-  cook_time: string
-  total_time: string
-  difficulty: string
-  description: string
-  channel_name?: string
-  video_url?: string
-  ingredients: {
-    quantity: string
-    unit: string
-    ingredient: string
-    purpose?: string
-  }[]
-  instructions: {
-    step_number: number
-    category: string
-    instruction: string
-    is_key_step?: boolean
-  }[]
-}
-
-export interface Visuals {
-  [key: string]: {
-    timestamp: string | null
-    frame_base64: string | null
-  }
-}
-
-interface PipelineStatusState {
-  metadata: boolean
-  transcript: boolean
-  recipe: boolean
-  timestamps: boolean
-  frames: boolean
-  pdf: boolean
-}
+import LandingPage from './components/LandingPage'
+import RecipeCollection from './components/RecipeCollection'
+import RecipeExtractor from './components/RecipeExtractor'
+import BookCreator from './components/BookCreator'
+import BookList from './components/BookList'
+import ProtectedRoute from './components/ProtectedRoute'
 
 function App() {
-  const [url, setUrl] = useState('')
-  const [videoId, setVideoId] = useState<string | null>(null)
-  const [recipe, setRecipe] = useState<Recipe | null>(null)
-  const [loading, setLoading] = useState(false)
-  const [error, setError] = useState<string | null>(null)
-  const [showCache, setShowCache] = useState(true)
-  const [pdfReady, setPdfReady] = useState(false)
-  const [checkingPdf, setCheckingPdf] = useState(false)
-  const pollIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null)
-
-  // Extract video ID when URL changes
-  useEffect(() => {
-    try {
-      if (url.includes('v=')) {
-        const id = url.split('v=')[1].split('&')[0]
-        setVideoId(id)
-      } else if (url.includes('youtu.be/')) {
-        const id = url.split('youtu.be/')[1].split('?')[0]
-        setVideoId(id)
-      } else {
-        setVideoId(null)
-      }
-    } catch (e) {
-      setVideoId(null)
-    }
-  }, [url])
-
-  // Cleanup interval on unmount
-  useEffect(() => {
-    return () => {
-      if (pollIntervalRef.current) {
-        clearInterval(pollIntervalRef.current)
-        pollIntervalRef.current = null
-      }
-    }
-  }, [])
-
-  const handleSelectCachedVideo = (id: string, videoUrl: string) => {
-    setUrl(videoUrl)
-    setVideoId(id)
-    window.scrollTo({ top: 0, behavior: 'smooth' })
-  }
-
-  // Check PDF status and poll until ready
-  const checkPdfStatus = (id: string) => {
-    setCheckingPdf(true)
-    setPdfReady(false)
-
-    // Clear any existing interval
-    if (pollIntervalRef.current) {
-      clearInterval(pollIntervalRef.current)
-    }
-
-    pollIntervalRef.current = setInterval(async () => {
-      try {
-        const response = await fetch(
-          `${config.API_BASE_URL}/api/cache/${id}/status`
-        )
-        if (response.ok) {
-          const status = await response.json()
-          if (status.pdf) {
-            setPdfReady(true)
-            setCheckingPdf(false)
-            if (pollIntervalRef.current) {
-              clearInterval(pollIntervalRef.current)
-              pollIntervalRef.current = null
-            }
-          }
-        }
-      } catch (err) {
-        console.error('Error checking PDF status:', err)
-      }
-    }, 2000) // Poll every 2 seconds
-  }
-
-  const fetchCachedRecipe = async (id: string) => {
-    try {
-      const response = await fetch(`${config.API_BASE_URL}/api/cache/${id}`)
-      if (!response.ok) return null
-      const data = await response.json()
-      return data.recipe as Recipe
-    } catch (err) {
-      console.error('Error fetching cached recipe:', err)
-      return null
-    }
-  }
-
-  const triggerPdfGeneration = async (id: string) => {
-    try {
-      // Fire-and-forget PDF generation; status polling will mark it ready
-      await fetch(`${config.API_BASE_URL}/api/cache/${id}/pdf`)
-    } catch (err) {
-      console.error('Error generating PDF:', err)
-    }
-  }
-
-  const handleExtract = async (submitUrl: string) => {
-    // Reset any existing PDF polling
-    if (pollIntervalRef.current) {
-      clearInterval(pollIntervalRef.current)
-      pollIntervalRef.current = null
-    }
-
-    setLoading(true)
-    setError(null)
-    setRecipe(null)
-    setShowCache(false)
-    setPdfReady(false)
-    setCheckingPdf(false)
-
-    try {
-      // If recipe already cached, reuse it and only generate missing PDF
-      let cachedStatus: PipelineStatusState | null = null
-      if (videoId) {
-        try {
-          const statusResponse = await fetch(`${config.API_BASE_URL}/api/cache/${videoId}/status`)
-          if (statusResponse.ok) {
-            cachedStatus = await statusResponse.json()
-          }
-        } catch (err) {
-          console.error('Error checking cached status:', err)
-        }
-      }
-
-      if (videoId && cachedStatus?.recipe) {
-        const cachedRecipe = await fetchCachedRecipe(videoId)
-        if (cachedRecipe) {
-          setRecipe(cachedRecipe)
-          if (cachedStatus.pdf) {
-            setPdfReady(true)
-            setCheckingPdf(false)
-          } else {
-            checkPdfStatus(videoId)
-            void triggerPdfGeneration(videoId)
-          }
-          return
-        }
-      }
-
-      // Step 1: Extract recipe
-      const recipeResponse = await fetch(`${config.API_BASE_URL}/api/recipe`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ url: submitUrl }),
-      })
-
-      if (!recipeResponse.ok) {
-        throw new Error('Failed to extract recipe')
-      }
-
-      const recipeData = await recipeResponse.json()
-      setRecipe(recipeData)
-
-      // Step 2: Extract visuals (dish_visual hero image) and trigger PDF generation
-      const keySteps: { [key: string]: string } = {}
-      recipeData.instructions.forEach((step: any) => {
-        if (step.is_key_step) {
-          keySteps[step.step_number.toString()] = step.instruction
-        }
-      })
-
-      const visualsResponse = await fetch(
-        `${config.API_BASE_URL}/api/visuals`,
-        {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({ url: submitUrl, key_steps: keySteps }),
-        }
-      )
-
-      if (!visualsResponse.ok) {
-        throw new Error('Failed to extract visuals')
-      }
-
-      await visualsResponse.json()
-
-      // Start checking for PDF after visuals extraction (which triggers PDF generation)
-      if (videoId) {
-        checkPdfStatus(videoId)
-      }
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'An error occurred')
-      setShowCache(true)
-    } finally {
-      setLoading(false)
-    }
-  }
-
   return (
-    <div className="app">
-      <header>
-        <h1>🍳 Recipe Extract</h1>
-        <p>Extract structured recipes from YouTube cooking videos</p>
-      </header>
-
-      <UrlInput
-        url={url}
-        onUrlChange={setUrl}
-        onExtract={handleExtract}
-        loading={loading}
-      />
-
-      {loading && videoId && <PizzaTracker videoId={videoId} />}
-
-      {videoId && !loading && !recipe && <PipelineStatus videoId={videoId} />}
-
-      {error && (
-        <div className="error">
-          <p>❌ {error}</p>
-        </div>
-      )}
-
-      {!recipe && !loading && showCache && (
-        <CacheView onSelectVideo={handleSelectCachedVideo} />
-      )}
-
-      {recipe && (
-        <div>
-          <div style={{ display: 'flex', gap: '1rem', marginBottom: '1rem' }}>
-            <button
-              className="btn-secondary"
-              onClick={() => {
-                setRecipe(null)
-                setShowCache(true)
-                setPdfReady(false)
-                setCheckingPdf(false)
-                if (pollIntervalRef.current) {
-                  clearInterval(pollIntervalRef.current)
-                  pollIntervalRef.current = null
-                }
-                // Keep URL and VideoID so user can easily re-run or modify
-              }}
-            >
-              ← Back to Cache / Search
-            </button>
-            {videoId && (
-              <button
-                className="btn-primary"
-                onClick={() => {
-                  // Download PDF from backend with download=true to force download
-                  const pdfUrl = `${config.API_BASE_URL}/api/cache/${videoId}/pdf?download=true`
-                  window.open(pdfUrl, '_blank')
-                }}
-              >
-                📥 Download PDF
-              </button>
-            )}
-          </div>
-
-          {/* PDF Preview Section */}
-          {videoId && (
-            <div className="pdf-preview-container">
-              {checkingPdf && !pdfReady && (
-                <div className="pdf-loading">
-                  <div className="spinner"></div>
-                  <p>Generating PDF preview...</p>
-                </div>
-              )}
-
-              {pdfReady && (
-                <div className="pdf-iframe-wrapper">
-                  <iframe
-                    src={`${config.API_BASE_URL}/api/cache/${videoId}/pdf`}
-                    title="Recipe PDF Preview"
-                    className="pdf-iframe"
-                  />
-                </div>
-              )}
-            </div>
-          )}
-        </div>
-      )}
-    </div>
+    <AuthProvider>
+      <Router>
+        <Routes>
+          <Route path="/" element={<LandingPage />} />
+          <Route
+            path="/recipes"
+            element={
+              <ProtectedRoute>
+                <RecipeCollection />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/recipes/new"
+            element={
+              <ProtectedRoute>
+                <RecipeExtractor />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/books"
+            element={
+              <ProtectedRoute>
+                <BookList />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/books/create"
+            element={
+              <ProtectedRoute>
+                <BookCreator />
+              </ProtectedRoute>
+            }
+          />
+          <Route path="*" element={<Navigate to="/" replace />} />
+        </Routes>
+      </Router>
+    </AuthProvider>
   )
 }
 

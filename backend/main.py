@@ -1,11 +1,12 @@
-from fastapi import FastAPI, HTTPException, Query, BackgroundTasks
+from fastapi import FastAPI, HTTPException, Query, BackgroundTasks, Depends
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import StreamingResponse, Response
+from fastapi.responses import StreamingResponse, Response, RedirectResponse
 from pydantic import BaseModel
 import os
-from typing import Optional
+from typing import Optional, List
 import io
 from dotenv import load_dotenv
+from sqlalchemy.orm import Session
 
 # Load environment variables from .env file BEFORE importing services
 import os
@@ -21,6 +22,13 @@ from services import (
     extract_best_frame
 )
 import pdf_service
+import database
+import models
+import crud
+import auth
+
+# Initialize database
+database.init_db()
 
 app = FastAPI(title="Recipe Extract API")
 
@@ -58,14 +66,47 @@ class VisualsRequest(BaseModel):
     key_steps: dict  # {step_number: instruction}
 
 
+class CreateBookRequest(BaseModel):
+    name: str
+    recipe_ids: List[int]
+
+
+class SaveRecipeRequest(BaseModel):
+    url: str
+
+
 @app.get("/")
 async def root():
     return {"message": "Recipe Extract API"}
 
 
+# ==================== Authentication Endpoints ====================
+
+@app.get("/auth/me")
+async def get_current_user_info(current_user: models.User = Depends(auth.get_current_user)):
+    """
+    Get current authenticated user info.
+    This endpoint also creates the user in the database if they don't exist yet.
+    """
+    return {
+        "id": current_user.id,
+        "email": current_user.email,
+        "name": current_user.name,
+        "profile_picture_url": current_user.profile_picture_url,
+        "created_at": current_user.created_at
+    }
+
+
 @app.post("/api/recipe")
-async def extract_recipe(request: RecipeRequest):
-    """Extract structured recipe from YouTube URL"""
+async def extract_recipe(
+    request: RecipeRequest,
+    current_user: Optional[models.User] = Depends(auth.get_optional_user),
+    db: Session = Depends(database.get_db)
+):
+    """
+    Extract structured recipe from YouTube URL.
+    If authenticated, saves to user's collection.
+    """
     try:
         # Extract video ID from URL
         video_id = request.url.split("v=")[-1].split("&")[0]
@@ -89,8 +130,284 @@ async def extract_recipe(request: RecipeRequest):
         if metadata.get("channel_name"):
             recipe["channel_name"] = metadata.get("channel_name")
 
+        # If user is authenticated, save to database
+        if current_user:
+            db_recipe, created = crud.get_or_create_recipe(
+                db=db,
+                video_id=video_id,
+                video_url=request.url,
+                title=recipe.get("title", metadata.get("title")),
+                recipe_data=recipe,
+                channel_name=metadata.get("channel_name")
+            )
+            
+            # Associate recipe with user
+            try:
+                crud.add_recipe_to_user(db, current_user.id, db_recipe.id)
+            except ValueError:
+                # Recipe already in user's collection, that's fine
+                pass
+
         return recipe
         
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+# ==================== Recipe Management Endpoints ====================
+
+@app.post("/api/recipes")
+async def save_recipe_to_collection(
+    request: SaveRecipeRequest,
+    current_user: models.User = Depends(auth.get_current_user),
+    db: Session = Depends(database.get_db)
+):
+    """
+    Save a recipe to user's collection (extracts if needed)
+    """
+    try:
+        # Extract video ID
+        video_id = request.url.split("v=")[-1].split("&")[0]
+        
+        # Check if recipe already exists in database
+        db_recipe = crud.get_recipe_by_video_id(db, video_id)
+        
+        if not db_recipe:
+            # Recipe doesn't exist, need to extract it
+            metadata = get_video_metadata(request.url)
+            transcript = get_transcript(video_id)
+            
+            input_data = {
+                "title": metadata.get("title"),
+                "description": metadata.get("description"),
+                "transcript": transcript
+            }
+            
+            recipe_data = extract_recipe_gemini(input_data, request.url)
+            recipe_data["video_url"] = request.url
+            if metadata.get("channel_name"):
+                recipe_data["channel_name"] = metadata.get("channel_name")
+            
+            # Create recipe in database
+            db_recipe = crud.create_recipe(
+                db=db,
+                video_id=video_id,
+                video_url=request.url,
+                title=recipe_data.get("title", metadata.get("title")),
+                recipe_data=recipe_data,
+                channel_name=metadata.get("channel_name")
+            )
+        
+        # Add to user's collection
+        try:
+            crud.add_recipe_to_user(db, current_user.id, db_recipe.id)
+            return {
+                "message": "Recipe added to collection",
+                "recipe_id": db_recipe.id,
+                "recipe": db_recipe.recipe_data
+            }
+        except ValueError as e:
+            raise HTTPException(status_code=400, detail=str(e))
+        
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.get("/api/recipes")
+async def get_user_recipes(
+    current_user: models.User = Depends(auth.get_current_user),
+    db: Session = Depends(database.get_db)
+):
+    """
+    Get all recipes in user's collection
+    """
+    try:
+        recipes = crud.get_user_recipes(db, current_user.id)
+        return {
+            "recipes": [
+                {
+                    "id": recipe.id,
+                    "video_id": recipe.video_id,
+                    "video_url": recipe.video_url,
+                    "title": recipe.title,
+                    "channel_name": recipe.channel_name,
+                    "recipe_data": recipe.recipe_data,
+                    "created_at": recipe.created_at
+                }
+                for recipe in recipes
+            ]
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.delete("/api/recipes/{recipe_id}")
+async def remove_recipe_from_collection(
+    recipe_id: int,
+    current_user: models.User = Depends(auth.get_current_user),
+    db: Session = Depends(database.get_db)
+):
+    """
+    Remove a recipe from user's collection
+    """
+    try:
+        success = crud.remove_recipe_from_user(db, current_user.id, recipe_id)
+        if not success:
+            raise HTTPException(status_code=404, detail="Recipe not found in collection")
+        return {"message": "Recipe removed from collection"}
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+# ==================== Book Management Endpoints ====================
+
+@app.post("/api/books")
+async def create_book(
+    request: CreateBookRequest,
+    current_user: models.User = Depends(auth.get_current_user),
+    db: Session = Depends(database.get_db)
+):
+    """
+    Create a new book with selected recipes (5-20 recipes required)
+    """
+    try:
+        book = crud.create_book(
+            db=db,
+            user_id=current_user.id,
+            name=request.name,
+            recipe_ids=request.recipe_ids
+        )
+        
+        return {
+            "message": "Book created successfully",
+            "book": {
+                "id": book.id,
+                "name": book.name,
+                "created_at": book.created_at,
+                "recipe_count": len(request.recipe_ids)
+            }
+        }
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.get("/api/books")
+async def get_user_books(
+    current_user: models.User = Depends(auth.get_current_user),
+    db: Session = Depends(database.get_db)
+):
+    """
+    Get all books for the current user
+    """
+    try:
+        books = crud.get_user_books(db, current_user.id)
+        return {
+            "books": [
+                {
+                    "id": book.id,
+                    "name": book.name,
+                    "created_at": book.created_at,
+                    "recipe_count": len(book.book_recipes)
+                }
+                for book in books
+            ]
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.get("/api/books/{book_id}")
+async def get_book_details(
+    book_id: int,
+    current_user: models.User = Depends(auth.get_current_user),
+    db: Session = Depends(database.get_db)
+):
+    """
+    Get book details with all recipes
+    """
+    try:
+        book_data = crud.get_book_with_recipes(db, book_id)
+        if not book_data:
+            raise HTTPException(status_code=404, detail="Book not found")
+        
+        # Verify book belongs to current user
+        if book_data["user_id"] != current_user.id:
+            raise HTTPException(status_code=403, detail="Access denied")
+        
+        return book_data
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.delete("/api/books/{book_id}")
+async def delete_book(
+    book_id: int,
+    current_user: models.User = Depends(auth.get_current_user),
+    db: Session = Depends(database.get_db)
+):
+    """
+    Delete a book
+    """
+    try:
+        success = crud.delete_book(db, book_id, current_user.id)
+        if not success:
+            raise HTTPException(status_code=404, detail="Book not found")
+        return {"message": "Book deleted successfully"}
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.get("/api/books/{book_id}/pdf")
+async def download_book_pdf(
+    book_id: int,
+    current_user: models.User = Depends(auth.get_current_user),
+    db: Session = Depends(database.get_db),
+    download: bool = Query(False, description="Force download instead of inline display")
+):
+    """
+    Generate and download a combined PDF for all recipes in a book
+    """
+    try:
+        book_data = crud.get_book_with_recipes(db, book_id)
+        if not book_data:
+            raise HTTPException(status_code=404, detail="Book not found")
+        
+        # Verify book belongs to current user
+        if book_data["user_id"] != current_user.id:
+            raise HTTPException(status_code=403, detail="Access denied")
+        
+        # For now, return first recipe's PDF as placeholder
+        # TODO: Implement combined PDF generation for multiple recipes
+        if book_data["recipes"]:
+            first_recipe = book_data["recipes"][0]
+            pdf_bytes = await pdf_service.generate_or_load_pdf(first_recipe["video_id"])
+            
+            # Sanitize filename
+            safe_name = "".join(c for c in book_data["name"] if c.isalnum() or c in (' ', '-', '_')).strip()
+            safe_name = safe_name.replace(' ', '_')
+            filename = f"{safe_name}_cookbook.pdf"
+            
+            disposition = "attachment" if download else "inline"
+            return Response(
+                content=pdf_bytes,
+                media_type="application/pdf",
+                headers={
+                    "Content-Disposition": f"{disposition}; filename={filename}"
+                }
+            )
+        else:
+            raise HTTPException(status_code=400, detail="Book has no recipes")
+            
+    except HTTPException:
+        raise
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
