@@ -3,11 +3,10 @@ PDF Generation Service
 Generates recipe PDFs from cached data using Playwright for HTML→PDF conversion
 """
 
-import os
 import base64
 from io import BytesIO
 from pathlib import Path
-from typing import List, Optional
+from typing import Dict, List, Optional
 from jinja2 import Environment, FileSystemLoader
 from playwright.async_api import async_playwright
 from pypdf import PdfReader, PdfWriter
@@ -17,6 +16,44 @@ import cache_manager
 # Setup Jinja2 environment
 TEMPLATES_DIR = Path(__file__).parent / "templates"
 jinja_env = Environment(loader=FileSystemLoader(str(TEMPLATES_DIR)))
+
+
+async def render_html_pages(html_pages: List[str]) -> List[bytes]:
+    """
+    Render a list of HTML strings into single-page PDFs using Playwright.
+    """
+    try:
+        async with async_playwright() as p:
+            browser = await p.chromium.launch()
+            pdf_pages: List[bytes] = []
+
+            for html in html_pages:
+                page = await browser.new_page()
+                await page.set_content(html, wait_until="networkidle")
+                await page.evaluate("() => document.fonts.ready")
+                pdf_bytes = await page.pdf(
+                    format="A4",
+                    print_background=True,
+                    margin={
+                        "top": "0mm",
+                        "right": "0mm",
+                        "bottom": "0mm",
+                        "left": "0mm",
+                    },
+                )
+                await page.close()
+                pdf_pages.append(pdf_bytes)
+
+            await browser.close()
+            return pdf_pages
+    except Exception as e:
+        raise Exception(f"Failed to render book pages: {str(e)}")
+
+
+def get_pdf_page_count(pdf_bytes: bytes) -> int:
+    """Return the number of pages in a PDF byte stream."""
+    reader = PdfReader(BytesIO(pdf_bytes))
+    return len(reader.pages)
 
 
 def get_hero_image_data_uri(video_id: str) -> Optional[str]:
@@ -376,6 +413,89 @@ async def generate_or_load_pdf(video_id: str, force_regenerate: bool = False) ->
     save_pdf_to_cache(video_id, pdf_bytes)
     
     return pdf_bytes
+
+
+async def generate_book_pdf(book_data: Dict) -> bytes:
+    """
+    Build a book PDF with covers, inner pages, table of contents, and recipes.
+    
+    Page order:
+      1. Outer cover (front placeholder with book name)
+      2. Inner cover
+      3. Blank page
+      4. Table of contents
+      5. Recipe content (existing recipe PDFs in order)
+      6. Outer cover (back placeholder)
+    """
+    if not book_data.get("recipes"):
+        raise ValueError("Book has no recipes")
+
+    book_name = book_data.get("name", "My Cookbook")
+
+    # Templates
+    cover_template = jinja_env.get_template("book_cover.html")
+    inner_cover_template = jinja_env.get_template("book_inner_cover.html")
+    blank_template = jinja_env.get_template("book_blank.html")
+    toc_template = jinja_env.get_template("book_toc.html")
+
+    cover_html = cover_template.render(book_name=book_name, variant="front")
+    inner_cover_html = inner_cover_template.render(book_name=book_name)
+    blank_html = blank_template.render()
+
+    # Generate PDFs for each recipe and capture their page counts for TOC
+    recipe_pdfs: List[bytes] = []
+    recipe_page_counts: List[int] = []
+    for recipe in book_data["recipes"]:
+        pdf_bytes = await generate_or_load_pdf(recipe["video_id"])
+        recipe_pdfs.append(pdf_bytes)
+        recipe_page_counts.append(get_pdf_page_count(pdf_bytes))
+
+    # Compute TOC entries and where blank pages are needed so every recipe starts on an odd page.
+    # Numbering begins at the first recipe page (i.e., page 1 == first recipe page).
+    add_blank_before: List[bool] = []
+    toc_entries = []
+    current_page = 1  # logical page number starting at first recipe
+
+    for recipe, page_count in zip(book_data["recipes"], recipe_page_counts):
+        needs_blank = current_page % 2 == 0
+        add_blank_before.append(needs_blank)
+        if needs_blank:
+            current_page += 1
+
+        toc_entries.append(
+            {
+                "title": recipe.get("title", "Recipe"),
+                "page_number": current_page,
+            }
+        )
+        current_page += page_count
+
+    toc_html = toc_template.render(book_name=book_name, entries=toc_entries)
+
+    # Front matter pages: outer cover, inner cover, blank, TOC
+    front_html_pages = [cover_html, inner_cover_html, blank_html, toc_html]
+    back_cover_html = cover_template.render(book_name=book_name, variant="back")
+
+    # Render reusable blank page PDF for inserted blanks
+    blank_pdf_page = (await render_html_pages([blank_html]))[0]
+
+    # Render all front/back matter
+    rendered_pages = await render_html_pages(front_html_pages + [back_cover_html])
+    front_pdf_pages = rendered_pages[: len(front_html_pages)]
+    back_cover_pdf = rendered_pages[-1]
+
+    # Assemble final PDF honoring odd-page starts with blanks
+    merged_parts: List[bytes] = []
+    merged_parts.extend(front_pdf_pages)
+
+    for recipe_pdf, needs_blank in zip(recipe_pdfs, add_blank_before):
+        if needs_blank:
+            merged_parts.append(blank_pdf_page)
+        merged_parts.append(recipe_pdf)
+
+    merged_parts.append(back_cover_pdf)
+
+    return merge_pdfs(merged_parts)
 
 
 def merge_pdfs(pdf_files: List[bytes]) -> bytes:

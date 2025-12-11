@@ -1,0 +1,72 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>{{ book_name }} - Cover</title>
+    <style>
+      @import url('https://fonts.googleapis.com/css2?family=Libre+Baskerville:wght@400;700&family=Open+Sans:wght@400;600&display=swap');
+
+      * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+      }
+
+      @page {
+        size: A4;
+        margin: 0;
+      }
+
+      body {
+        width: 210mm;
+        min-height: 297mm;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-family: 'Libre Baskerville', serif;
+        background: linear-gradient(135deg, #f6e6d9 0%, #d7c3b9 100%);
+        color: #1a1a1a;
+      }
+
+      .cover {
+        text-align: center;
+        padding: 40mm 20mm;
+        width: 100%;
+        height: 100%;
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+        gap: 12mm;
+      }
+
+      .label {
+        letter-spacing: 4px;
+        text-transform: uppercase;
+        font-size: 10pt;
+        color: #4a413b;
+      }
+
+      .title {
+        font-size: 36pt;
+        line-height: 1.1;
+      }
+
+      .variant {
+        font-family: 'Open Sans', sans-serif;
+        font-size: 11pt;
+        color: #4a413b;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="cover">
+      <div class="label">Cookbook</div>
+      <div class="title">{{ book_name }}</div>
+      <div class="variant">
+        {% if variant == "back" %}Back Cover{% else %}Outer Cover{% endif %}
+      </div>
+    </div>
+  </body>
+</html>
+

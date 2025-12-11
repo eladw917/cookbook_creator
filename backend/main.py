@@ -384,34 +384,25 @@ async def download_book_pdf(
         if book_data["user_id"] != current_user.id:
             raise HTTPException(status_code=403, detail="Access denied")
         
-        if book_data["recipes"]:
-            # Generate PDFs for each recipe in order and merge them
-            pdf_bytes_list = []
-            for recipe in book_data["recipes"]:
-                pdf_bytes_list.append(
-                    await pdf_service.generate_or_load_pdf(recipe["video_id"])
-                )
-            
-            if len(pdf_bytes_list) == 1:
-                pdf_bytes = pdf_bytes_list[0]
-            else:
-                pdf_bytes = pdf_service.merge_pdfs(pdf_bytes_list)
-            
-            # Sanitize filename
-            safe_name = "".join(c for c in book_data["name"] if c.isalnum() or c in (' ', '-', '_')).strip()
-            safe_name = safe_name.replace(' ', '_')
-            filename = f"{safe_name}_cookbook.pdf"
-            
-            disposition = "attachment" if download else "inline"
-            return Response(
-                content=pdf_bytes,
-                media_type="application/pdf",
-                headers={
-                    "Content-Disposition": f"{disposition}; filename={filename}"
-                }
-            )
-        else:
+        if not book_data["recipes"]:
             raise HTTPException(status_code=400, detail="Book has no recipes")
+
+        # Build full book PDF with covers and TOC
+        pdf_bytes = await pdf_service.generate_book_pdf(book_data)
+
+        # Sanitize filename
+        safe_name = "".join(c for c in book_data["name"] if c.isalnum() or c in (' ', '-', '_')).strip()
+        safe_name = safe_name.replace(' ', '_')
+        filename = f"{safe_name}_cookbook.pdf"
+        
+        disposition = "attachment" if download else "inline"
+        return Response(
+            content=pdf_bytes,
+            media_type="application/pdf",
+            headers={
+                "Content-Disposition": f"{disposition}; filename={filename}"
+            }
+        )
             
     except HTTPException:
         raise
