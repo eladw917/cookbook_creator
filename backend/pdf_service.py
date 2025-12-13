@@ -521,7 +521,9 @@ def merge_pdfs(pdf_files: List[bytes]) -> bytes:
 
 def add_page_numbers_to_book(pdf_bytes: bytes, front_matter_page_count: int) -> bytes:
     """
-    Add page numbers to the bottom center of recipe pages in a book PDF.
+    Add page numbers to recipe pages in a book PDF with alternating positions.
+    Odd pages (right side): bottom right corner
+    Even pages (left side): bottom left corner
     
     Args:
         pdf_bytes: The merged book PDF
@@ -555,14 +557,23 @@ def add_page_numbers_to_book(pdf_bytes: bytes, front_matter_page_count: int) -> 
             page_width = A4[0]
             page_height = A4[1]
             
-            # Position: centered horizontally, 20 points from bottom
-            x_position = page_width / 2
-            y_position = 20
+            # Position based on odd/even page number
+            # In PDF viewer: odd pages appear on left, even pages on right
+            # So we reverse the positioning:
+            # Odd pages (1, 3, 5...) = left in viewer = bottom left
+            # Even pages (2, 4, 6...) = right in viewer = bottom right
+            y_position = 20  # 20 points from bottom
+            margin = 40  # Distance from left/right edge
+            
+            if page_number % 2 == 1:  # Odd page - left side in viewer
+                x_position = margin
+            else:  # Even page - right side in viewer
+                x_position = page_width - margin
             
             # Set font and draw page number
             can.setFont("Helvetica", 10)
             can.setFillColorRGB(0.4, 0.4, 0.4)  # Gray color
-            can.drawCentredString(x_position, y_position, str(page_number))
+            can.drawString(x_position, y_position, str(page_number))
             
             can.save()
             packet.seek(0)
