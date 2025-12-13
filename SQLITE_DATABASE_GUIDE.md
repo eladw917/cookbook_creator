@@ -17,15 +17,14 @@ SQLite is a lightweight, file-based database that stores all data in a single fi
 
 Your cookbook app has **5 tables**:
 
-### 1. **users** - Stores user accounts
+### 1. **users** - Stores minimal user account data (privacy-focused)
 
 - `id` - Primary key (auto-incrementing number)
-- `clerk_id` - Unique ID from Clerk authentication
-- `email` - User's email address
-- `name` - User's name
-- `profile_picture_url` - Profile picture URL
+- `clerk_id` - Unique ID from Clerk authentication (required)
 - `created_at` - When account was created
 - `updated_at` - Last update time
+
+**Note:** User display information (email, name, profile picture) is NOT stored in the database for privacy reasons. This data is stored in Clerk and fetched on-demand when needed (e.g., when calling the `/auth/me` endpoint).
 
 ### 2. **recipes** - Stores recipe information
 
@@ -121,16 +120,18 @@ finally:
 from models import User
 users = db.query(User).all()
 for user in users:
-    print(f"{user.name} ({user.email})")
+    print(f"User ID: {user.id}, Clerk ID: {user.clerk_id}")
+    # Note: email and name are stored in Clerk, not in the database
 ```
 
-**Find a user by email:**
+**Find a user by Clerk ID:**
 
 ```python
-from crud import get_user_by_email
-user = get_user_by_email(db, "example@email.com")
+from crud import get_user_by_clerk_id
+user = get_user_by_clerk_id(db, "user_abc123...")
 if user:
-    print(f"Found: {user.name}")
+    print(f"Found user with ID: {user.id}")
+    # To get email/name, fetch from Clerk API
 ```
 
 **Get all recipes for a user:**

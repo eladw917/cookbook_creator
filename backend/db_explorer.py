@@ -36,11 +36,13 @@ def view_all_users(db):
         return
     
     print(f"\nFound {len(users)} user(s):\n")
-    print(f"{'ID':<5} {'Email':<30} {'Name':<20} {'Clerk ID':<20}")
-    print("-" * 80)
+    print("Note: User display info (email, name) is stored in Clerk, not in the database.")
+    print(f"{'ID':<5} {'Clerk ID':<40} {'Created At':<20}")
+    print("-" * 70)
     for user in users:
-        clerk_id = user.clerk_id[:15] + "..." if user.clerk_id and len(user.clerk_id) > 15 else (user.clerk_id or "N/A")
-        print(f"{user.id:<5} {user.email:<30} {user.name:<20} {clerk_id:<20}")
+        clerk_id = user.clerk_id[:37] + "..." if user.clerk_id and len(user.clerk_id) > 40 else (user.clerk_id or "N/A")
+        created = user.created_at.strftime("%Y-%m-%d %H:%M") if user.created_at else "N/A"
+        print(f"{user.id:<5} {clerk_id:<40} {created:<20}")
 
 
 def view_all_recipes(db):
@@ -89,10 +91,10 @@ def view_user_recipes(db):
     
     recipes = get_user_recipes(db, user_id)
     if not recipes:
-        print(f"\nUser '{user.name}' has no saved recipes.")
+        print(f"\nUser ID {user_id} has no saved recipes.")
         return
     
-    print(f"\nRecipes saved by '{user.name}' ({len(recipes)} total):\n")
+    print(f"\nRecipes saved by user ID {user_id} ({len(recipes)} total):\n")
     print(f"{'ID':<5} {'Title':<40} {'Video ID':<15}")
     print("-" * 65)
     for recipe in recipes:
@@ -144,12 +146,13 @@ def view_user_stats(db):
     recipes = get_user_recipes(db, user_id)
     books = get_user_books(db, user_id)
     
-    print(f"\nStatistics for '{user.name}' ({user.email}):")
+    print(f"\nStatistics for user ID {user_id} (Clerk ID: {user.clerk_id}):")
     print("-" * 60)
     print(f"Total saved recipes: {len(recipes)}")
     print(f"Total books created: {len(books)}")
     print(f"Account created: {user.created_at}")
     print(f"Last updated: {user.updated_at}")
+    print("\nNote: User display info (email, name, profile picture) is stored in Clerk.")
 
 
 def search_recipes(db):

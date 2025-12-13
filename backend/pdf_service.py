@@ -420,12 +420,11 @@ async def generate_book_pdf(book_data: Dict) -> bytes:
     Build a book PDF with covers, inner pages, table of contents, and recipes.
     
     Page order:
-      1. Outer cover (front placeholder with book name)
-      2. Inner cover
-      3. Blank page
-      4. Table of contents
-      5. Recipe content (existing recipe PDFs in order)
-      6. Outer cover (back placeholder)
+      1. Inner cover
+      2. Blank page
+      3. Table of contents
+      4. Recipe content (existing recipe PDFs in order)
+      5. Outer cover (back placeholder)
     """
     if not book_data.get("recipes"):
         raise ValueError("Book has no recipes")
@@ -438,7 +437,6 @@ async def generate_book_pdf(book_data: Dict) -> bytes:
     blank_template = jinja_env.get_template("book_blank.html")
     toc_template = jinja_env.get_template("book_toc.html")
 
-    cover_html = cover_template.render(book_name=book_name, variant="front")
     inner_cover_html = inner_cover_template.render(book_name=book_name)
     blank_html = blank_template.render()
 
@@ -472,8 +470,8 @@ async def generate_book_pdf(book_data: Dict) -> bytes:
 
     toc_html = toc_template.render(book_name=book_name, entries=toc_entries)
 
-    # Front matter pages: outer cover, inner cover, blank, TOC
-    front_html_pages = [cover_html, inner_cover_html, blank_html, toc_html]
+    # Front matter pages: inner cover, blank, TOC
+    front_html_pages = [inner_cover_html, blank_html, toc_html]
     back_cover_html = cover_template.render(book_name=book_name, variant="back")
 
     # Render reusable blank page PDF for inserted blanks

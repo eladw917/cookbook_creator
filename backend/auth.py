@@ -147,30 +147,14 @@ def get_current_user(
     user = db.query(models.User).filter(models.User.clerk_id == clerk_id).first()
     
     if not user:
-        # Create new user from Clerk data
-        email_addresses = clerk_user.get("email_addresses", [])
-        email = email_addresses[0].get("email_address", "") if email_addresses else ""
-        
-        first_name = clerk_user.get("first_name", "")
-        last_name = clerk_user.get("last_name", "")
-        name = f"{first_name} {last_name}".strip()
-        if not name:
-            name = email.split("@")[0] if email else "User"
-        
-        profile_picture = clerk_user.get("image_url", "")
-        
-        user = models.User(
-            clerk_id=clerk_id,
-            email=email,
-            name=name,
-            profile_picture_url=profile_picture
-        )
+        # Create new user with only clerk_id
+        user = models.User(clerk_id=clerk_id)
         db.add(user)
         db.commit()
         db.refresh(user)
-        print(f"DEBUG: Created new user: {email} (clerk_id: {clerk_id})")
+        print(f"DEBUG: Created new user with clerk_id: {clerk_id}")
     else:
-        print(f"DEBUG: Found existing user: {user.email} (clerk_id: {clerk_id})")
+        print(f"DEBUG: Found existing user with clerk_id: {clerk_id}")
     
     return user
 
@@ -204,24 +188,8 @@ def get_optional_user(
         user = db.query(models.User).filter(models.User.clerk_id == clerk_id).first()
         
         if not user:
-            # Create new user from Clerk data
-            email_addresses = clerk_user.get("email_addresses", [])
-            email = email_addresses[0].get("email_address", "") if email_addresses else ""
-            
-            first_name = clerk_user.get("first_name", "")
-            last_name = clerk_user.get("last_name", "")
-            name = f"{first_name} {last_name}".strip()
-            if not name:
-                name = email.split("@")[0] if email else "User"
-            
-            profile_picture = clerk_user.get("image_url", "")
-            
-            user = models.User(
-                clerk_id=clerk_id,
-                email=email,
-                name=name,
-                profile_picture_url=profile_picture
-            )
+            # Create new user with only clerk_id
+            user = models.User(clerk_id=clerk_id)
             db.add(user)
             db.commit()
             db.refresh(user)

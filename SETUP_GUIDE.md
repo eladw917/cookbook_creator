@@ -150,13 +150,12 @@ The frontend will start on http://localhost:5173
 
 The application uses SQLite with the following tables:
 
-- **users**: User accounts with Clerk integration
+- **users**: User accounts with Clerk integration (minimal model for privacy)
   - `id`: Primary key
-  - `clerk_id`: Clerk user identifier (unique)
-  - `google_id`: Legacy Google ID (nullable, for backward compatibility)
-  - `email`: User email
-  - `name`: User display name
-  - `profile_picture_url`: User avatar URL
+  - `clerk_id`: Clerk user identifier (unique, required)
+  - `created_at`: Account creation timestamp
+  - `updated_at`: Last update timestamp
+  - Note: User display info (email, name, profile picture) is stored in Clerk and fetched on-demand
 - **recipes**: Shared recipe data (one per YouTube video)
   - `id`: Primary key
   - `video_id`: YouTube video ID (unique)

@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../contexts/AuthContext'
 import { useAuth as useClerkAuth } from '@clerk/clerk-react'
 import config from '../config'
+import Navigation from './Navigation'
 
 interface Recipe {
   id: number
@@ -130,20 +131,10 @@ export default function RecipeCollection() {
 
   return (
     <div className="recipe-collection">
+      <Navigation />
       <header className="collection-header">
         <div className="header-content">
           <h1>🍳 My Recipe Collection</h1>
-          <div className="user-info">
-            <img
-              src={user?.profile_picture_url}
-              alt={user?.name}
-              className="user-avatar"
-            />
-            <span>{user?.name}</span>
-            <button onClick={logout} className="btn-secondary">
-              Logout
-            </button>
-          </div>
         </div>
       </header>
 
@@ -261,19 +252,6 @@ export default function RecipeCollection() {
         .header-content h1 {
           margin: 0;
           font-size: 2rem;
-        }
-
-        .user-info {
-          display: flex;
-          align-items: center;
-          gap: 1rem;
-        }
-
-        .user-avatar {
-          width: 40px;
-          height: 40px;
-          border-radius: 50%;
-          border: 2px solid white;
         }
 
         .collection-actions {

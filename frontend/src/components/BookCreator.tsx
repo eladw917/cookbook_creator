@@ -3,6 +3,7 @@ import { useNavigate, useLocation } from 'react-router-dom'
 import { useAuth } from '../contexts/AuthContext'
 import { useAuth as useClerkAuth } from '@clerk/clerk-react'
 import config from '../config'
+import Navigation from './Navigation'
 
 interface Recipe {
   id: number
@@ -132,11 +133,9 @@ export default function BookCreator() {
 
   return (
     <div className="book-creator">
+      <Navigation />
       <header className="creator-header">
         <div className="header-content">
-          <button onClick={() => navigate('/recipes')} className="btn-back">
-            ← Back to Collection
-          </button>
           <h1>📖 Create a New Book</h1>
         </div>
       </header>
@@ -242,23 +241,8 @@ export default function BookCreator() {
         }
 
         .header-content h1 {
-          margin: 1rem 0 0;
+          margin: 0;
           font-size: 2rem;
-        }
-
-        .btn-back {
-          background: rgba(255, 255, 255, 0.2);
-          color: white;
-          border: 1px solid rgba(255, 255, 255, 0.3);
-          padding: 0.5rem 1rem;
-          border-radius: 6px;
-          cursor: pointer;
-          font-size: 1rem;
-          transition: background 0.2s;
-        }
-
-        .btn-back:hover {
-          background: rgba(255, 255, 255, 0.3);
         }
 
         .creator-content {

@@ -4,6 +4,7 @@ import { useAuth } from '../contexts/AuthContext'
 import { useAuth as useClerkAuth } from '@clerk/clerk-react'
 import config from '../config'
 import PizzaTracker from './PizzaTracker'
+import Navigation from './Navigation'
 
 export default function RecipeExtractor() {
   const [url, setUrl] = useState('')
@@ -101,11 +102,9 @@ export default function RecipeExtractor() {
 
   return (
     <div className="recipe-extractor">
+      <Navigation />
       <header className="extractor-header">
         <div className="header-content">
-          <button onClick={() => navigate('/recipes')} className="btn-back">
-            ← Back to Collection
-          </button>
           <h1>🍳 Add New Recipe</h1>
         </div>
       </header>
@@ -172,23 +171,8 @@ export default function RecipeExtractor() {
         }
 
         .header-content h1 {
-          margin: 1rem 0 0;
+          margin: 0;
           font-size: 2rem;
-        }
-
-        .btn-back {
-          background: rgba(255, 255, 255, 0.2);
-          color: white;
-          border: 1px solid rgba(255, 255, 255, 0.3);
-          padding: 0.5rem 1rem;
-          border-radius: 6px;
-          cursor: pointer;
-          font-size: 1rem;
-          transition: background 0.2s;
-        }
-
-        .btn-back:hover {
-          background: rgba(255, 255, 255, 0.3);
         }
 
         .extractor-content {

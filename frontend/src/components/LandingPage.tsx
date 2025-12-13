@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { SignIn, useUser } from '@clerk/clerk-react'
 import { useAuth } from '../contexts/AuthContext'
+import Navigation from './Navigation'
 
 export default function LandingPage() {
   const [url, setUrl] = useState('')
@@ -44,6 +45,7 @@ export default function LandingPage() {
 
   return (
     <div className="landing-page">
+      <Navigation />
       <header className="landing-header">
         <h1>🍳 Cookbook Creator</h1>
       </header>

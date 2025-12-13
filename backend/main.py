@@ -1,6 +1,7 @@
 from fastapi import FastAPI, HTTPException, Query, BackgroundTasks, Depends
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import StreamingResponse, Response, RedirectResponse
+from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from pydantic import BaseModel
 import os
 from typing import Optional, List
@@ -83,18 +84,43 @@ async def root():
 # ==================== Authentication Endpoints ====================
 
 @app.get("/auth/me")
-async def get_current_user_info(current_user: models.User = Depends(auth.get_current_user)):
+async def get_current_user_info(
+    current_user: models.User = Depends(auth.get_current_user),
+    db: Session = Depends(database.get_db)
+):
     """
     Get current authenticated user info.
     This endpoint also creates the user in the database if they don't exist yet.
+    Fetches user display information (email, name, profile picture) from Clerk.
     """
-    return {
-        "id": current_user.id,
-        "email": current_user.email,
-        "name": current_user.name,
-        "profile_picture_url": current_user.profile_picture_url,
-        "created_at": current_user.created_at
-    }
+    # Fetch user details from Clerk using the clerk_id
+    try:
+        clerk_user_obj = auth.clerk.users.get(user_id=current_user.clerk_id)
+        
+        # Extract display info from Clerk
+        email = clerk_user_obj.email_addresses[0].email_address if clerk_user_obj.email_addresses else ""
+        first_name = clerk_user_obj.first_name or ""
+        last_name = clerk_user_obj.last_name or ""
+        name = f"{first_name} {last_name}".strip() or (email.split("@")[0] if email else "User")
+        profile_picture_url = clerk_user_obj.image_url or ""
+        
+        return {
+            "id": current_user.id,
+            "email": email,
+            "name": name,
+            "profile_picture_url": profile_picture_url,
+            "created_at": current_user.created_at
+        }
+    except Exception as e:
+        print(f"ERROR: Failed to fetch user from Clerk: {e}")
+        # Return minimal info if Clerk fetch fails
+        return {
+            "id": current_user.id,
+            "email": "",
+            "name": "User",
+            "profile_picture_url": "",
+            "created_at": current_user.created_at
+        }
 
 
 @app.post("/api/recipe")
@@ -411,7 +437,11 @@ async def download_book_pdf(
 
 
 @app.post("/api/visuals")
-async def extract_visuals(request: VisualsRequest, background_tasks: BackgroundTasks):
+async def extract_visuals(
+    request: VisualsRequest,
+    background_tasks: BackgroundTasks,
+    current_user: models.User = Depends(auth.get_current_user)
+):
     """Extract timestamps and best frame for dish visual only"""
     try:
         video_id = request.url.split("v=")[-1].split("&")[0]

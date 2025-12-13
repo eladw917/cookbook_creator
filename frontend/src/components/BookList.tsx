@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../contexts/AuthContext'
 import { useAuth as useClerkAuth } from '@clerk/clerk-react'
 import config from '../config'
+import Navigation from './Navigation'
 
 interface Book {
   id: number
@@ -114,6 +115,7 @@ export default function BookList() {
 
   return (
     <div className="book-list">
+      <Navigation />
       <header className="books-header">
         <div className="header-content">
           <h1>📚 My Cookbooks</h1>
@@ -121,9 +123,6 @@ export default function BookList() {
       </header>
 
       <div className="books-actions">
-        <button onClick={() => navigate('/recipes')} className="btn-secondary">
-          ← Back to Recipes
-        </button>
         <button
           onClick={() => navigate('/books/create')}
           className="btn-primary"

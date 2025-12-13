@@ -15,19 +15,9 @@ def get_user_by_id(db: Session, user_id: int) -> Optional[models.User]:
     return db.query(models.User).filter(models.User.id == user_id).first()
 
 
-def get_user_by_google_id(db: Session, google_id: str) -> Optional[models.User]:
-    """Get user by Google ID"""
-    return db.query(models.User).filter(models.User.google_id == google_id).first()
-
-
 def get_user_by_clerk_id(db: Session, clerk_id: str) -> Optional[models.User]:
     """Get user by Clerk ID"""
     return db.query(models.User).filter(models.User.clerk_id == clerk_id).first()
-
-
-def get_user_by_email(db: Session, email: str) -> Optional[models.User]:
-    """Get user by email"""
-    return db.query(models.User).filter(models.User.email == email).first()
 
 
 # ==================== Recipe Operations ====================

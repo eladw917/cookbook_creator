@@ -11,11 +11,7 @@ class User(Base):
     __tablename__ = "users"
 
     id = Column(Integer, primary_key=True, index=True)
-    clerk_id = Column(String, unique=True, index=True, nullable=True)
-    google_id = Column(String, unique=True, index=True, nullable=True)  # Kept for backward compatibility
-    email = Column(String, unique=True, index=True, nullable=False)
-    name = Column(String, nullable=False)
-    profile_picture_url = Column(String, nullable=True)
+    clerk_id = Column(String, unique=True, index=True, nullable=False)
     created_at = Column(DateTime, default=datetime.utcnow)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
@@ -24,7 +20,7 @@ class User(Base):
     books = relationship("Book", back_populates="user", cascade="all, delete-orphan")
 
     def __repr__(self):
-        return f"<User(id={self.id}, email={self.email}, name={self.name})>"
+        return f"<User(id={self.id}, clerk_id={self.clerk_id})>"
 
 
 class Recipe(Base):
