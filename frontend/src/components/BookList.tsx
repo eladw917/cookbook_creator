@@ -165,6 +165,12 @@ export default function BookList() {
               </p>
               <div className="book-actions">
                 <button
+                  onClick={() => navigate(`/books/${book.id}/edit`)}
+                  className="btn-secondary"
+                >
+                  ✏️ Edit
+                </button>
+                <button
                   onClick={() => handleDownloadBook(book.id, book.name)}
                   className="btn-primary"
                 >
@@ -264,6 +270,24 @@ export default function BookList() {
           display: flex;
           flex-direction: column;
           gap: 0.75rem;
+        }
+
+        .btn-secondary {
+          background: #6c757d;
+          color: white;
+          padding: 0.75rem 1.5rem;
+          border: none;
+          border-radius: 8px;
+          cursor: pointer;
+          font-size: 1rem;
+          font-weight: 600;
+          transition: background 0.2s;
+          text-decoration: none;
+          display: inline-block;
+        }
+
+        .btn-secondary:hover {
+          background: #5a6268;
         }
 
         .btn-danger {

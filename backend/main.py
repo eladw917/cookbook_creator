@@ -72,6 +72,11 @@ class CreateBookRequest(BaseModel):
     recipe_ids: List[int]
 
 
+class UpdateBookRequest(BaseModel):
+    name: Optional[str] = None
+    recipe_ids: Optional[List[int]] = None
+
+
 class SaveRecipeRequest(BaseModel):
     url: str
 
@@ -365,6 +370,45 @@ async def get_book_details(
             raise HTTPException(status_code=403, detail="Access denied")
         
         return book_data
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.put("/api/books/{book_id}")
+async def update_book(
+    book_id: int,
+    request: UpdateBookRequest,
+    current_user: models.User = Depends(auth.get_current_user),
+    db: Session = Depends(database.get_db)
+):
+    """
+    Update book name and/or recipe order
+    """
+    try:
+        book = crud.update_book(
+            db=db,
+            book_id=book_id,
+            user_id=current_user.id,
+            name=request.name,
+            recipe_ids=request.recipe_ids
+        )
+        
+        if not book:
+            raise HTTPException(status_code=404, detail="Book not found")
+        
+        return {
+            "message": "Book updated successfully",
+            "book": {
+                "id": book.id,
+                "name": book.name,
+                "updated_at": book.updated_at,
+                "recipe_count": len(book.book_recipes)
+            }
+        }
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
     except HTTPException:
         raise
     except Exception as e:

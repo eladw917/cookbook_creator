@@ -302,6 +302,81 @@ def delete_book(db: Session, book_id: int, user_id: int) -> bool:
     return True
 
 
+def update_book(
+    db: Session,
+    book_id: int,
+    user_id: int,
+    name: Optional[str] = None,
+    recipe_ids: Optional[List[int]] = None
+) -> Optional[models.Book]:
+    """
+    Update book name and/or recipes with new order
+    
+    Args:
+        db: Database session
+        book_id: Book ID
+        user_id: User ID (for authorization)
+        name: Optional new book name
+        recipe_ids: Optional new list of recipe IDs in desired order
+        
+    Returns:
+        Updated book instance, or None if not found/unauthorized
+        
+    Raises:
+        ValueError: If recipe count is invalid or recipes don't belong to user
+    """
+    # Get book and verify ownership
+    book = db.query(models.Book).filter(
+        and_(
+            models.Book.id == book_id,
+            models.Book.user_id == user_id
+        )
+    ).first()
+    
+    if not book:
+        return None
+    
+    # Update book name if provided
+    if name is not None:
+        book.name = name
+    
+    # Update recipes if provided
+    if recipe_ids is not None:
+        # Validate recipe count
+        if len(recipe_ids) < 5:
+            raise ValueError("Book must contain at least 5 recipes")
+        if len(recipe_ids) > 20:
+            raise ValueError("Book cannot contain more than 20 recipes")
+        
+        # Verify all recipes belong to the user
+        for recipe_id in recipe_ids:
+            if not user_has_recipe(db, user_id, recipe_id):
+                raise ValueError(f"Recipe {recipe_id} not found in user's collection")
+        
+        # Delete existing book_recipes entries
+        db.query(models.BookRecipe).filter(
+            models.BookRecipe.book_id == book_id
+        ).delete()
+        
+        # Create new book_recipes with updated order
+        for index, recipe_id in enumerate(recipe_ids):
+            book_recipe = models.BookRecipe(
+                book_id=book_id,
+                recipe_id=recipe_id,
+                order_index=index
+            )
+            db.add(book_recipe)
+    
+    # Update the updated_at timestamp
+    book.updated_at = datetime.utcnow()
+    
+    db.commit()
+    db.refresh(book)
+    
+    print(f"DEBUG: Updated book {book_id} for user {user_id}")
+    return book
+
+
 def get_book_with_recipes(db: Session, book_id: int) -> Optional[dict]:
     """
     Get book with all its recipes
