@@ -495,7 +495,11 @@ async def generate_book_pdf(book_data: Dict) -> bytes:
 
     merged_parts.append(back_cover_pdf)
 
-    return merge_pdfs(merged_parts)
+    # Merge all parts
+    merged_pdf = merge_pdfs(merged_parts)
+    
+    # Add page numbers to recipe pages
+    return add_page_numbers_to_book(merged_pdf, len(front_pdf_pages))
 
 
 def merge_pdfs(pdf_files: List[bytes]) -> bytes:
@@ -508,6 +512,66 @@ def merge_pdfs(pdf_files: List[bytes]) -> bytes:
         reader = PdfReader(BytesIO(pdf_bytes))
         for page in reader.pages:
             writer.add_page(page)
+    
+    output = BytesIO()
+    writer.write(output)
+    writer.close()
+    return output.getvalue()
+
+
+def add_page_numbers_to_book(pdf_bytes: bytes, front_matter_page_count: int) -> bytes:
+    """
+    Add page numbers to the bottom center of recipe pages in a book PDF.
+    
+    Args:
+        pdf_bytes: The merged book PDF
+        front_matter_page_count: Number of front matter pages (cover, inner, blank, TOC)
+                                 Page numbering starts after these pages
+    
+    Returns:
+        PDF with page numbers added
+    """
+    from reportlab.pdfgen import canvas
+    from reportlab.lib.pagesizes import A4
+    
+    reader = PdfReader(BytesIO(pdf_bytes))
+    writer = PdfWriter()
+    
+    total_pages = len(reader.pages)
+    
+    for page_idx in range(total_pages):
+        page = reader.pages[page_idx]
+        
+        # Only add page numbers to recipe pages (after front matter, before back cover)
+        if page_idx >= front_matter_page_count and page_idx < total_pages - 1:
+            # Calculate logical page number (starting at 1 for first recipe page)
+            page_number = page_idx - front_matter_page_count + 1
+            
+            # Create a new PDF with just the page number
+            packet = BytesIO()
+            can = canvas.Canvas(packet, pagesize=A4)
+            
+            # A4 dimensions
+            page_width = A4[0]
+            page_height = A4[1]
+            
+            # Position: centered horizontally, 20 points from bottom
+            x_position = page_width / 2
+            y_position = 20
+            
+            # Set font and draw page number
+            can.setFont("Helvetica", 10)
+            can.setFillColorRGB(0.4, 0.4, 0.4)  # Gray color
+            can.drawCentredString(x_position, y_position, str(page_number))
+            
+            can.save()
+            packet.seek(0)
+            
+            # Merge the page number onto the existing page
+            number_pdf = PdfReader(packet)
+            page.merge_page(number_pdf.pages[0])
+        
+        writer.add_page(page)
     
     output = BytesIO()
     writer.write(output)
