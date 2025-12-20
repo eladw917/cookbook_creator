@@ -21,7 +21,7 @@ jobs:
       - name: Deploy Backend to Fly.io
         run: |
           cd backend
-          flyctl deploy --remote-only --app cookbook-creator-api
+          flyctl deploy --remote-only --app cookbook-creator-api --dockerfile Dockerfile
         env:
           FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN }}
 
@@ -39,7 +39,7 @@ jobs:
       - name: Deploy Frontend to Fly.io
         run: |
           cd frontend
-          flyctl deploy --remote-only --app cookbook-creator-web
+          flyctl deploy --remote-only --app cookbook-creator-web --dockerfile Dockerfile
         env:
           FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN }}
 
