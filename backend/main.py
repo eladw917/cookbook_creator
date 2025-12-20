@@ -632,8 +632,11 @@ async def get_cache_status(video_id: str):
 
 
 @app.get("/api/cache/{video_id}")
-async def get_cached_recipe(video_id: str):
-    """Get a cached recipe by video ID"""
+async def get_cached_recipe(video_id: str, regenerate: bool = Query(False, description="Force regenerate if not in cache")):
+    """
+    Get a cached recipe by video ID.
+    If recipe is not in cache and regenerate=true, attempts to regenerate it.
+    """
     import cache_manager
     try:
         # Load all cached data
@@ -643,7 +646,47 @@ async def get_cached_recipe(video_id: str):
         status = cache_manager.get_pipeline_status(video_id)
         
         if not recipe:
-            raise HTTPException(status_code=404, detail="Recipe not found in cache")
+            if regenerate:
+                # Try to regenerate the recipe
+                print(f"DEBUG: Recipe not found in cache for video {video_id}, attempting to regenerate...")
+                try:
+                    video_url = f"https://www.youtube.com/watch?v={video_id}"
+                    
+                    # Get metadata and transcript
+                    if not metadata:
+                        print(f"DEBUG: Fetching metadata for video {video_id}")
+                        metadata = get_video_metadata(video_url)
+                        cache_manager.save_step(video_id, "metadata", metadata)
+                    
+                    transcript = cache_manager.load_step(video_id, "transcript")
+                    if not transcript:
+                        print(f"DEBUG: Fetching transcript for video {video_id}")
+                        transcript = get_transcript(video_id)
+                        cache_manager.save_step(video_id, "transcript", transcript)
+                    
+                    # Extract recipe
+                    print(f"DEBUG: Extracting recipe for video {video_id}")
+                    input_data = {
+                        "metadata": metadata,
+                        "transcript": transcript
+                    }
+                    recipe = extract_recipe_gemini(input_data, video_url)
+                    print(f"DEBUG: Successfully regenerated recipe for video {video_id}")
+                    
+                    # Reload status after regeneration
+                    status = cache_manager.get_pipeline_status(video_id)
+                    
+                except Exception as e:
+                    print(f"ERROR: Failed to regenerate recipe for video {video_id}: {e}")
+                    raise HTTPException(
+                        status_code=500, 
+                        detail=f"Recipe not found in cache and regeneration failed: {str(e)}"
+                    )
+            else:
+                raise HTTPException(
+                    status_code=404, 
+                    detail="Recipe not found in cache. Add ?regenerate=true to attempt regeneration."
+                )
 
         # Add video URL and channel info to cached recipe data for compatibility
         recipe["video_url"] = f"https://www.youtube.com/watch?v={video_id}"

@@ -275,6 +275,7 @@ async def measure_content_and_split(page, recipe: dict) -> dict:
 async def generate_recipe_pdf(video_id: str) -> bytes:
     """
     Generate a PDF for a recipe using cached data.
+    If recipe is not in cache, attempts to regenerate it from the video.
     
     Args:
         video_id: YouTube video ID
@@ -283,7 +284,7 @@ async def generate_recipe_pdf(video_id: str) -> bytes:
         PDF file as bytes
         
     Raises:
-        ValueError: If recipe data not found in cache
+        ValueError: If recipe data not found and cannot be regenerated
         Exception: If PDF generation fails
     """
     print(f"DEBUG: Generating PDF for video {video_id}")
@@ -291,7 +292,38 @@ async def generate_recipe_pdf(video_id: str) -> bytes:
     # Load cached data
     recipe = cache_manager.load_step(video_id, "recipe")
     if not recipe:
-        raise ValueError(f"Recipe not found in cache for video {video_id}")
+        print(f"DEBUG: Recipe not found in cache for video {video_id}, attempting to regenerate...")
+        # Try to regenerate the recipe from the video
+        try:
+            from services import get_video_metadata, get_transcript, extract_recipe_gemini
+            
+            video_url = f"https://www.youtube.com/watch?v={video_id}"
+            
+            # Get metadata and transcript
+            metadata = cache_manager.load_step(video_id, "metadata")
+            if not metadata:
+                print(f"DEBUG: Fetching metadata for video {video_id}")
+                metadata = get_video_metadata(video_url)
+                cache_manager.save_step(video_id, "metadata", metadata)
+            
+            transcript = cache_manager.load_step(video_id, "transcript")
+            if not transcript:
+                print(f"DEBUG: Fetching transcript for video {video_id}")
+                transcript = get_transcript(video_id)
+                cache_manager.save_step(video_id, "transcript", transcript)
+            
+            # Extract recipe
+            print(f"DEBUG: Extracting recipe for video {video_id}")
+            input_data = {
+                "metadata": metadata,
+                "transcript": transcript
+            }
+            recipe = extract_recipe_gemini(input_data, video_url)
+            print(f"DEBUG: Successfully regenerated recipe for video {video_id}")
+            
+        except Exception as e:
+            print(f"ERROR: Failed to regenerate recipe for video {video_id}: {e}")
+            raise ValueError(f"Recipe not found in cache for video {video_id} and regeneration failed: {str(e)}")
     
     metadata = cache_manager.load_step(video_id, "metadata")
     
