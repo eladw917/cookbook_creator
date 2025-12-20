@@ -1,0 +1,35 @@
+# Fly.io configuration for Cookbook Creator Frontend
+app = "cookbook-creator-web"  # Change this to your unique app name
+primary_region = "sjc"  # Change to your preferred region
+
+# Build configuration
+[build]
+  dockerfile = "Dockerfile"
+
+# Build-time environment variables
+[build.args]
+  VITE_CLERK_PUBLISHABLE_KEY = "pk_test_Y29tcGxldGUtbWFuYXRlZS01LmNsZXJrLmFjY291bnRzLmRldiQ"
+
+# HTTP service configuration
+[http_service]
+  internal_port = 80
+  force_https = true
+  auto_stop_machines = true
+  auto_start_machines = true
+  min_machines_running = 0  # Scale to zero when idle (free tier)
+  processes = ["app"]
+
+  # Health checks
+  [[http_service.checks]]
+    grace_period = "5s"
+    interval = "30s"
+    method = "GET"
+    timeout = "2s"
+    path = "/"
+
+# VM resources
+[[vm]]
+  cpu_kind = "shared"
+  cpus = 1
+  memory_mb = 256  # Free tier
+

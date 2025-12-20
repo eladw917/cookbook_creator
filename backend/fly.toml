@@ -1,0 +1,44 @@
+# fly.toml app configuration file generated for cookbook-creator-api on 2025-12-20T16:00:19+02:00
+#
+# See https://fly.io/docs/reference/configuration/ for information about how to use this file.
+#
+
+app = 'cookbook-creator-api'
+primary_region = 'sjc'
+
+[build]
+  dockerfile = 'Dockerfile'
+
+[env]
+  CACHE_PATH = '/data/cache'
+  DATABASE_PATH = '/data/cookbook.db'
+  PORT = '8000'
+
+[[mounts]]
+  source = 'cookbook_data'
+  destination = '/data'
+  processes = ['app']
+
+[http_service]
+  internal_port = 8000
+  force_https = true
+  auto_stop_machines = 'stop'
+  auto_start_machines = true
+  min_machines_running = 0
+  processes = ['app']
+
+  [[http_service.checks]]
+    interval = '30s'
+    timeout = '5s'
+    grace_period = '10s'
+    method = 'GET'
+    path = '/'
+
+[[vm]]
+  cpu_kind = 'shared'
+  cpus = 1
+  memory_mb = 256
+
+[[metrics]]
+  port = 9091
+  path = '/metrics'
