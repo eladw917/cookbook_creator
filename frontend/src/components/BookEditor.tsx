@@ -20,6 +20,7 @@ import {
 import { CSS } from '@dnd-kit/utilities'
 import config from '../config'
 import Navigation from './Navigation'
+import PrintOrderModal from './PrintOrderModal'
 
 interface Recipe {
   id: number
@@ -97,6 +98,7 @@ export default function BookEditor() {
   const [error, setError] = useState<string | null>(null)
   const [hasChanges, setHasChanges] = useState(false)
   const [showAddRecipes, setShowAddRecipes] = useState(false)
+  const [showPrintModal, setShowPrintModal] = useState(false)
 
   const sensors = useSensors(
     useSensor(PointerSensor),
@@ -328,6 +330,20 @@ export default function BookEditor() {
                 Cancel
               </button>
             </div>
+
+            {isValid && !hasChanges && (
+              <div className="print-order-section">
+                <button
+                  onClick={() => setShowPrintModal(true)}
+                  className="btn-print btn-large"
+                >
+                  📦 Order Printed Book
+                </button>
+                <p className="print-info">
+                  Get a physical copy of your cookbook delivered to your door
+                </p>
+              </div>
+            )}
           </div>
 
           {availableRecipes.length > 0 && (
@@ -397,6 +413,18 @@ export default function BookEditor() {
           </DndContext>
         </div>
       </div>
+
+      {showPrintModal && (
+        <PrintOrderModal
+          bookId={parseInt(id!)}
+          bookName={bookName}
+          onClose={() => setShowPrintModal(false)}
+          onOrderCreated={orderId => {
+            console.log('Order created:', orderId)
+            setShowPrintModal(false)
+          }}
+        />
+      )}
 
       <style>{`
         .book-editor {
@@ -502,6 +530,37 @@ export default function BookEditor() {
           padding: 1rem 2rem;
           font-size: 1.1rem;
           font-weight: 600;
+        }
+
+        .print-order-section {
+          margin-top: 1.5rem;
+          padding-top: 1.5rem;
+          border-top: 2px solid #e9ecef;
+        }
+
+        .btn-print {
+          width: 100%;
+          padding: 1rem 2rem;
+          font-size: 1.1rem;
+          font-weight: 600;
+          background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+          color: white;
+          border: none;
+          border-radius: 8px;
+          cursor: pointer;
+          transition: transform 0.2s, box-shadow 0.2s;
+        }
+
+        .btn-print:hover {
+          transform: translateY(-2px);
+          box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
+        }
+
+        .print-info {
+          margin-top: 0.75rem;
+          font-size: 0.9rem;
+          color: #666;
+          text-align: center;
         }
 
         .btn-secondary {

@@ -12,6 +12,7 @@ import RecipeExtractor from './components/RecipeExtractor'
 import BookCreator from './components/BookCreator'
 import BookEditor from './components/BookEditor'
 import BookList from './components/BookList'
+import PrintOrderList from './components/PrintOrderList'
 import ProtectedRoute from './components/ProtectedRoute'
 
 function App() {
@@ -57,6 +58,14 @@ function App() {
             element={
               <ProtectedRoute>
                 <BookEditor />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/print-orders"
+            element={
+              <ProtectedRoute>
+                <PrintOrderList />
               </ProtectedRoute>
             }
           />

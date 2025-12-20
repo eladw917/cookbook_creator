@@ -55,6 +55,15 @@ export default function Navigation() {
             <span className="nav-icon">✨</span>
             Create Cookbook
           </NavLink>
+          <NavLink
+            to="/print-orders"
+            className={({ isActive }) =>
+              isActive ? 'nav-link active' : 'nav-link'
+            }
+          >
+            <span className="nav-icon">📦</span>
+            Print Orders
+          </NavLink>
         </div>
 
         <div className="nav-user">
@@ -197,3 +206,4 @@ export default function Navigation() {
     </nav>
   )
 }
+

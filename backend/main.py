@@ -4,8 +4,11 @@ from fastapi.responses import StreamingResponse, Response, RedirectResponse
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from pydantic import BaseModel
 import os
-from typing import Optional, List
+from typing import Optional, List, Dict
 import io
+import secrets
+import time
+from pathlib import Path
 from dotenv import load_dotenv
 from sqlalchemy.orm import Session
 
@@ -81,9 +84,88 @@ class SaveRecipeRequest(BaseModel):
     url: str
 
 
+class PrintQuoteRequest(BaseModel):
+    country_code: str = "US"
+    state_code: Optional[str] = None
+    city: Optional[str] = None
+    postcode: Optional[str] = None
+
+
+class PrintOrderRequest(BaseModel):
+    shipping_name: str
+    shipping_address: Dict
+    shipping_level: str = "MAIL"
+    contact_email: str
+
+
 @app.get("/")
 async def root():
     return {"message": "Recipe Extract API"}
+
+
+# ==================== Public PDF Hosting ====================
+
+# In-memory storage for temporary PDF URLs (in production, use Redis or database)
+_pdf_url_cache: Dict[str, Dict] = {}
+
+def create_public_pdf_url(book_id: int, pdf_bytes: bytes) -> str:
+    """
+    Create a temporary public URL for a PDF.
+    
+    Args:
+        book_id: Book ID
+        pdf_bytes: PDF file bytes
+        
+    Returns:
+        Public URL that Lulu can access
+    """
+    # Generate secure random token
+    token = secrets.token_urlsafe(32)
+    
+    # Store PDF with expiry (24 hours)
+    _pdf_url_cache[token] = {
+        "book_id": book_id,
+        "pdf_bytes": pdf_bytes,
+        "expires_at": time.time() + (24 * 60 * 60)  # 24 hours
+    }
+    
+    # Get base URL from environment or use default
+    base_url = os.getenv("PUBLIC_PDF_BASE_URL", "http://localhost:8000")
+    return f"{base_url}/public/pdfs/{book_id}/{token}.pdf"
+
+
+@app.get("/public/pdfs/{book_id}/{token}")
+async def serve_public_pdf(book_id: int, token: str):
+    """
+    Publicly accessible endpoint for Lulu to download PDFs.
+    No authentication required - uses secure random tokens.
+    """
+    # Remove .pdf extension from token if present
+    token = token.replace(".pdf", "")
+    
+    # Check if token exists
+    if token not in _pdf_url_cache:
+        raise HTTPException(status_code=404, detail="PDF not found or expired")
+    
+    pdf_data = _pdf_url_cache[token]
+    
+    # Check if expired
+    if time.time() > pdf_data["expires_at"]:
+        del _pdf_url_cache[token]
+        raise HTTPException(status_code=404, detail="PDF expired")
+    
+    # Verify book_id matches
+    if pdf_data["book_id"] != book_id:
+        raise HTTPException(status_code=404, detail="Invalid PDF URL")
+    
+    # Return PDF
+    return Response(
+        content=pdf_data["pdf_bytes"],
+        media_type="application/pdf",
+        headers={
+            "Content-Disposition": f"inline; filename=cookbook_{book_id}.pdf"
+        }
+    )
 
 
 # ==================== Authentication Endpoints ====================
@@ -648,6 +730,280 @@ async def download_recipe_pdf(
         
     except ValueError as e:
         raise HTTPException(status_code=404, detail=str(e))
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+# ==================== Print Order Endpoints ====================
+
+@app.get("/api/books/{book_id}/print-quote")
+async def get_print_quote(
+    book_id: int,
+    country_code: str = Query("US"),
+    state_code: str = Query(""),
+    city: str = Query(""),
+    postcode: str = Query(""),
+    current_user: models.User = Depends(auth.get_current_user),
+    db: Session = Depends(database.get_db)
+):
+    """
+    Get pricing quote for printing a book.
+    Returns estimated cost including shipping to specified location.
+    """
+    import lulu_service
+    
+    try:
+        # Get book and verify ownership
+        book_data = crud.get_book_with_recipes(db, book_id)
+        if not book_data:
+            raise HTTPException(status_code=404, detail="Book not found")
+        
+        if book_data["user_id"] != current_user.id:
+            raise HTTPException(status_code=403, detail="Access denied")
+        
+        if not book_data["recipes"]:
+            raise HTTPException(status_code=400, detail="Book has no recipes")
+        
+        # Calculate page count (approximate)
+        # Each recipe typically has 2-3 pages, plus cover pages
+        recipe_count = len(book_data["recipes"])
+        estimated_page_count = 3 + (recipe_count * 2)  # 3 front matter + ~2 pages per recipe
+        
+        # Create minimal shipping address for quote
+        shipping_address = {
+            "city": city or "New York",
+            "country_code": country_code,
+            "postcode": postcode or "10001",
+            "state_code": state_code or "NY",
+            "street1": "123 Main St",  # Required but not used for quote
+            "phone_number": "+1 555-0100"  # Required but not used for quote
+        }
+        
+        # Get cost calculation from Lulu
+        cost_data = lulu_service.get_cost_calculation(
+            page_count=estimated_page_count,
+            pod_package_id=lulu_service.DEFAULT_POD_PACKAGE_ID,
+            shipping_address=shipping_address,
+            shipping_option="MAIL",
+            quantity=1
+        )
+        
+        return {
+            "book_id": book_id,
+            "book_name": book_data["name"],
+            "estimated_page_count": estimated_page_count,
+            "recipe_count": recipe_count,
+            "cost_breakdown": cost_data,
+            "pod_package_id": lulu_service.DEFAULT_POD_PACKAGE_ID,
+            "binding_type": "coil"
+        }
+        
+    except lulu_service.LuluAPIError as e:
+        raise HTTPException(status_code=502, detail=f"Lulu API error: {str(e)}")
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.post("/api/books/{book_id}/print-order")
+async def create_print_order(
+    book_id: int,
+    request: PrintOrderRequest,
+    current_user: models.User = Depends(auth.get_current_user),
+    db: Session = Depends(database.get_db)
+):
+    """
+    Create a print order with Lulu.
+    
+    Steps:
+    1. Generate book PDF
+    2. Create public URL for PDF
+    3. Submit print job to Lulu
+    4. Save order to database
+    5. Return order details
+    """
+    import lulu_service
+    
+    try:
+        # Get book and verify ownership
+        book_data = crud.get_book_with_recipes(db, book_id)
+        if not book_data:
+            raise HTTPException(status_code=404, detail="Book not found")
+        
+        if book_data["user_id"] != current_user.id:
+            raise HTTPException(status_code=403, detail="Access denied")
+        
+        if not book_data["recipes"]:
+            raise HTTPException(status_code=400, detail="Book has no recipes")
+        
+        # Validate shipping address
+        try:
+            lulu_service.validate_shipping_address(request.shipping_address)
+        except ValueError as e:
+            raise HTTPException(status_code=400, detail=str(e))
+        
+        # Generate book PDF
+        print(f"DEBUG: Generating PDF for book {book_id}")
+        pdf_bytes = await pdf_service.generate_book_pdf(book_data)
+        
+        # Create public URL for Lulu to access
+        public_url = create_public_pdf_url(book_id, pdf_bytes)
+        print(f"DEBUG: Created public PDF URL: {public_url}")
+        
+        # Calculate page count
+        recipe_count = len(book_data["recipes"])
+        estimated_page_count = 3 + (recipe_count * 2)
+        
+        # Create print job with Lulu
+        print(f"DEBUG: Submitting print job to Lulu")
+        lulu_job = lulu_service.create_print_job(
+            interior_url=public_url,
+            cover_url=public_url,  # Same PDF for now
+            page_count=estimated_page_count,
+            shipping_address=request.shipping_address,
+            contact_email=request.contact_email,
+            shipping_level=request.shipping_level,
+            pod_package_id=lulu_service.DEFAULT_POD_PACKAGE_ID,
+            quantity=1,
+            title=book_data["name"],
+            external_id=f"book_{book_id}"
+        )
+        
+        # Save order to database
+        print_order = crud.create_print_order(
+            db=db,
+            user_id=current_user.id,
+            book_id=book_id,
+            lulu_job_id=str(lulu_job["id"]),
+            shipping_name=request.shipping_name,
+            shipping_address=request.shipping_address,
+            shipping_level=request.shipping_level,
+            total_cost=None  # Will be updated when we get final cost
+        )
+        
+        return {
+            "order_id": print_order.id,
+            "lulu_job_id": lulu_job["id"],
+            "status": lulu_job.get("status", {}).get("name", "CREATED"),
+            "book_name": book_data["name"],
+            "created_at": print_order.created_at
+        }
+        
+    except lulu_service.LuluAPIError as e:
+        raise HTTPException(status_code=502, detail=f"Lulu API error: {str(e)}")
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.get("/api/print-orders/{order_id}")
+async def get_print_order_status(
+    order_id: int,
+    current_user: models.User = Depends(auth.get_current_user),
+    db: Session = Depends(database.get_db)
+):
+    """
+    Get current status of a print order.
+    Fetches latest status from Lulu and updates database.
+    """
+    import lulu_service
+    
+    try:
+        # Get order from database
+        print_order = crud.get_print_order(db, order_id)
+        if not print_order:
+            raise HTTPException(status_code=404, detail="Print order not found")
+        
+        # Verify ownership
+        if print_order.user_id != current_user.id:
+            raise HTTPException(status_code=403, detail="Access denied")
+        
+        # Query Lulu for latest status
+        lulu_job = lulu_service.get_print_job_status(int(print_order.lulu_job_id))
+        
+        # Update database with new status
+        new_status = lulu_job.get("status", {}).get("name", "UNKNOWN")
+        
+        # Extract tracking info if shipped
+        tracking_info = None
+        if new_status == "SHIPPED":
+            tracking_info = lulu_service.get_print_job_tracking(int(print_order.lulu_job_id))
+        
+        # Update order in database
+        if tracking_info:
+            crud.update_print_order_status(
+                db=db,
+                order_id=order_id,
+                status=new_status,
+                tracking_id=tracking_info.get("tracking_id"),
+                tracking_url=tracking_info["tracking_urls"][0] if tracking_info.get("tracking_urls") else None,
+                carrier_name=tracking_info.get("carrier_name")
+            )
+        else:
+            crud.update_print_order_status(db=db, order_id=order_id, status=new_status)
+        
+        # Get updated order
+        print_order = crud.get_print_order(db, order_id)
+        
+        # Get book info
+        book = crud.get_book(db, print_order.book_id)
+        
+        return {
+            "id": print_order.id,
+            "book_id": print_order.book_id,
+            "book_name": book.name if book else "Unknown",
+            "lulu_job_id": print_order.lulu_job_id,
+            "status": print_order.status,
+            "shipping_name": print_order.shipping_name,
+            "shipping_address": print_order.shipping_address,
+            "shipping_level": print_order.shipping_level,
+            "total_cost": print_order.total_cost,
+            "tracking_id": print_order.tracking_id,
+            "tracking_url": print_order.tracking_url,
+            "carrier_name": print_order.carrier_name,
+            "created_at": print_order.created_at,
+            "updated_at": print_order.updated_at
+        }
+        
+    except lulu_service.LuluAPIError as e:
+        raise HTTPException(status_code=502, detail=f"Lulu API error: {str(e)}")
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.get("/api/print-orders")
+async def list_print_orders(
+    current_user: models.User = Depends(auth.get_current_user),
+    db: Session = Depends(database.get_db)
+):
+    """Get all print orders for current user"""
+    try:
+        orders = crud.get_user_print_orders(db, current_user.id)
+        
+        # Get book names for each order
+        result = []
+        for order in orders:
+            book = crud.get_book(db, order.book_id)
+            result.append({
+                "id": order.id,
+                "book_id": order.book_id,
+                "book_name": book.name if book else "Unknown",
+                "lulu_job_id": order.lulu_job_id,
+                "status": order.status,
+                "shipping_name": order.shipping_name,
+                "shipping_level": order.shipping_level,
+                "total_cost": order.total_cost,
+                "tracking_id": order.tracking_id,
+                "tracking_url": order.tracking_url,
+                "carrier_name": order.carrier_name,
+                "created_at": order.created_at,
+                "updated_at": order.updated_at
+            })
+        
+        return {"orders": result}
+        
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
