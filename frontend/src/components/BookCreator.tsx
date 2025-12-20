@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react'
 import { useNavigate, useLocation } from 'react-router-dom'
 import { useAuth } from '../contexts/AuthContext'
 import { useAuth as useClerkAuth } from '@clerk/clerk-react'
-import config from '../config'
+import { API_BASE_URL } from '../config'
 import Navigation from './Navigation'
 
 interface Recipe {
@@ -36,7 +36,7 @@ export default function BookCreator() {
   const fetchRecipes = async () => {
     try {
       const token = await getToken()
-      const response = await fetch(`${config.API_BASE_URL}/api/recipes`, {
+      const response = await fetch(`${API_BASE_URL}/api/recipes`, {
         headers: {
           Authorization: `Bearer ${token}`,
         },
@@ -92,7 +92,7 @@ export default function BookCreator() {
 
     try {
       const token = await getToken()
-      const response = await fetch(`${config.API_BASE_URL}/api/books`, {
+      const response = await fetch(`${API_BASE_URL}/api/books`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

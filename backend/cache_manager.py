@@ -3,8 +3,13 @@ import json
 from pathlib import Path
 from typing import Optional, Dict, Any
 
-# Use Railway volume if available, otherwise local directory
-BASE_DIR = Path(os.getenv("RAILWAY_VOLUME_MOUNT_PATH", Path(__file__).parent))
+# Use volume path from Railway or Fly.io, otherwise local directory
+# Railway uses RAILWAY_VOLUME_MOUNT_PATH, Fly.io uses CACHE_PATH
+CACHE_PATH_ENV = os.getenv("CACHE_PATH") or os.getenv("RAILWAY_VOLUME_MOUNT_PATH")
+if CACHE_PATH_ENV:
+    BASE_DIR = Path(CACHE_PATH_ENV) if os.getenv("CACHE_PATH") else Path(CACHE_PATH_ENV)
+else:
+    BASE_DIR = Path(__file__).parent
 
 # Base directory for storing video processing data
 CACHE_DIR = BASE_DIR / "cache"

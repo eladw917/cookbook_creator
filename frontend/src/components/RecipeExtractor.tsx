@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react'
 import { useLocation, useNavigate } from 'react-router-dom'
 import { useAuth } from '../contexts/AuthContext'
 import { useAuth as useClerkAuth } from '@clerk/clerk-react'
-import config from '../config'
+import { API_BASE_URL } from '../config'
 import PizzaTracker from './PizzaTracker'
 import Navigation from './Navigation'
 
@@ -48,7 +48,7 @@ export default function RecipeExtractor() {
     try {
       const token = await getToken()
       // Extract recipe (will automatically save to user's collection)
-      const response = await fetch(`${config.API_BASE_URL}/api/recipe`, {
+      const response = await fetch(`${API_BASE_URL}/api/recipe`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -76,7 +76,7 @@ export default function RecipeExtractor() {
         }
       })
 
-      await fetch(`${config.API_BASE_URL}/api/visuals`, {
+      await fetch(`${API_BASE_URL}/api/visuals`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

@@ -18,7 +18,7 @@ import {
   verticalListSortingStrategy,
 } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
-import config from '../config'
+import { API_BASE_URL } from '../config'
 import Navigation from './Navigation'
 import PrintOrderModal from './PrintOrderModal'
 
@@ -136,7 +136,7 @@ export default function BookEditor() {
 
       // Fetch book details
       const bookResponse = await fetch(
-        `${config.API_BASE_URL}/api/books/${id}`,
+        `${API_BASE_URL}/api/books/${id}`,
         {
           headers: {
             Authorization: `Bearer ${token}`,
@@ -154,7 +154,7 @@ export default function BookEditor() {
 
       // Fetch all user recipes
       const recipesResponse = await fetch(
-        `${config.API_BASE_URL}/api/recipes`,
+        `${API_BASE_URL}/api/recipes`,
         {
           headers: {
             Authorization: `Bearer ${token}`,
@@ -222,7 +222,7 @@ export default function BookEditor() {
 
     try {
       const token = await getToken()
-      const response = await fetch(`${config.API_BASE_URL}/api/books/${id}`, {
+      const response = await fetch(`${API_BASE_URL}/api/books/${id}`, {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',

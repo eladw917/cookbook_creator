@@ -2,11 +2,11 @@ import {
   createContext,
   useContext,
   useEffect,
-  ReactNode,
   useState,
 } from 'react'
+import type { ReactNode } from 'react'
 import { useUser, useAuth as useClerkAuth } from '@clerk/clerk-react'
-import config from '../config'
+import { API_BASE_URL } from '../config'
 
 interface User {
   id: number
@@ -43,7 +43,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       const token = await getToken()
       if (!token) return
 
-      const response = await fetch(`${config.API_BASE_URL}/auth/me`, {
+      const response = await fetch(`${API_BASE_URL}/auth/me`, {
         headers: {
           Authorization: `Bearer ${token}`,
         },

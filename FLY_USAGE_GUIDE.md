@@ -83,11 +83,13 @@ gh run view --log-failed
 #### Monitor Deployments
 
 **GitHub Actions Dashboard:**
+
 1. Go to your repository on GitHub
 2. Click **Actions** tab
 3. See all workflow runs and their status
 
 **Command Line:**
+
 ```bash
 # List recent deployments
 gh run list --workflow="Deploy to Fly.io"
@@ -117,6 +119,7 @@ flyctl deploy
 #### CI/CD Files
 
 Your repository includes:
+
 - `.github/workflows/deploy.yml` - Automatic deployment workflow
 - `.github/workflows/ci.yml` - Tests and linting workflow
 - `backend/fly.toml` - Backend configuration
@@ -127,9 +130,11 @@ Your repository includes:
 #### GitHub Secrets
 
 Required secret (already configured):
+
 - `FLY_API_TOKEN` - Fly.io deployment token
 
 To update:
+
 ```bash
 # Generate new token
 flyctl tokens create org personal
@@ -157,6 +162,7 @@ flyctl releases rollback --app cookbook-creator-api
 #### Troubleshooting CI/CD
 
 **Deployment fails:**
+
 ```bash
 # Check logs
 gh run view <run-id> --log-failed
@@ -168,6 +174,7 @@ gh run view <run-id> --log-failed
 ```
 
 **Re-run failed deployment:**
+
 ```bash
 # Via CLI
 gh run rerun <run-id>

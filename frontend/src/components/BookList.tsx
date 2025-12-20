@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../contexts/AuthContext'
 import { useAuth as useClerkAuth } from '@clerk/clerk-react'
-import config from '../config'
+import { API_BASE_URL } from '../config'
 import Navigation from './Navigation'
 
 interface Book {
@@ -26,7 +26,7 @@ export default function BookList() {
   const fetchBooks = async () => {
     try {
       const token = await getToken()
-      const response = await fetch(`${config.API_BASE_URL}/api/books`, {
+      const response = await fetch(`${API_BASE_URL}/api/books`, {
         headers: {
           Authorization: `Bearer ${token}`,
         },
@@ -49,7 +49,7 @@ export default function BookList() {
     try {
       const token = await getToken()
       const response = await fetch(
-        `${config.API_BASE_URL}/api/books/${bookId}/pdf?download=true`,
+        `${API_BASE_URL}/api/books/${bookId}/pdf?download=true`,
         {
           headers: {
             Authorization: `Bearer ${token}`,
@@ -85,7 +85,7 @@ export default function BookList() {
     try {
       const token = await getToken()
       const response = await fetch(
-        `${config.API_BASE_URL}/api/books/${bookId}`,
+        `${API_BASE_URL}/api/books/${bookId}`,
         {
           method: 'DELETE',
           headers: {

@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import config from '../config';
+import { API_BASE_URL } from '../config';
 
 interface PipelineStatus {
     metadata: boolean;
@@ -29,7 +29,7 @@ const CacheView: React.FC<CacheViewProps> = ({ onSelectVideo }) => {
 
     const fetchCachedVideos = async () => {
         try {
-            const response = await fetch(`${config.API_BASE_URL}/api/cache`);
+            const response = await fetch(`${API_BASE_URL}/api/cache`);
             const data = await response.json();
             setCachedVideos(data.videos);
         } catch (error) {
@@ -44,7 +44,7 @@ const CacheView: React.FC<CacheViewProps> = ({ onSelectVideo }) => {
         if (!confirm('Are you sure you want to delete all cached data for this video?')) return;
 
         try {
-            await fetch(`${config.API_BASE_URL}/api/cache/${videoId}`, {
+            await fetch(`${API_BASE_URL}/api/cache/${videoId}`, {
                 method: 'DELETE',
             });
             fetchCachedVideos(); // Refresh the list

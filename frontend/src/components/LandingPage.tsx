@@ -52,7 +52,9 @@ export default function LandingPage() {
 
       <main className="landing-main">
         <section className="hero">
-          <h2>Transform YouTube Cooking Videos into Beautiful Recipes</h2>
+          <h2>
+            Transform weller YouTube Cooking Videos into Beautiful Recipes
+          </h2>
           <p className="hero-description">
             Extract structured recipes from your favorite cooking videos. Save
             them to your collection and create personalized cookbooks.

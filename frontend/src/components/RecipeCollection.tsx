@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../contexts/AuthContext'
 import { useAuth as useClerkAuth } from '@clerk/clerk-react'
-import config from '../config'
+import { API_BASE_URL } from '../config'
 import Navigation from './Navigation'
 
 interface Recipe {
@@ -32,7 +32,7 @@ export default function RecipeCollection() {
   const fetchRecipes = async () => {
     try {
       const token = await getToken()
-      const response = await fetch(`${config.API_BASE_URL}/api/recipes`, {
+      const response = await fetch(`${API_BASE_URL}/api/recipes`, {
         headers: {
           Authorization: `Bearer ${token}`,
         },
@@ -63,7 +63,7 @@ export default function RecipeCollection() {
     try {
       const token = await getToken()
       const response = await fetch(
-        `${config.API_BASE_URL}/api/recipes/${recipeId}`,
+        `${API_BASE_URL}/api/recipes/${recipeId}`,
         {
           method: 'DELETE',
           headers: {
@@ -209,7 +209,7 @@ export default function RecipeCollection() {
                   🎥 Watch Video
                 </a>
                 <a
-                  href={`${config.API_BASE_URL}/api/cache/${recipe.video_id}/pdf`}
+                  href={`${API_BASE_URL}/api/cache/${recipe.video_id}/pdf`}
                   target="_blank"
                   rel="noopener noreferrer"
                   className="btn-link"
