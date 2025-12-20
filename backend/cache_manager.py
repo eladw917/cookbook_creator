@@ -3,9 +3,11 @@ import json
 from pathlib import Path
 from typing import Optional, Dict, Any
 
+# Use Railway volume if available, otherwise local directory
+BASE_DIR = Path(os.getenv("RAILWAY_VOLUME_MOUNT_PATH", Path(__file__).parent))
+
 # Base directory for storing video processing data
-# Use relative path from the backend directory
-CACHE_DIR = Path(__file__).parent / "cache"
+CACHE_DIR = BASE_DIR / "cache"
 
 
 def get_video_cache_dir(video_id: str) -> Path:
