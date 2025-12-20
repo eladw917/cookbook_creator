@@ -82,3 +82,16 @@ coverage.xml
 # Log files (additional patterns)
 logs/
 *.log.*
+
+# Database files - NEVER COMMIT THESE!
+*.db
+*.db.backup
+*.sqlite
+*.sqlite3
+backend/cookbook.db
+backend/cookbook.db.backup
+
+# Database backups
+backups/
+*.sql
+*.dump
