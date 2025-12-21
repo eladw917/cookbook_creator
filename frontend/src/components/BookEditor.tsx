@@ -274,7 +274,7 @@ export default function BookEditor() {
       <Navigation />
       <header className="editor-header">
         <div className="header-content">
-          <h1>✏️ Edit Book</h1>
+          <h1>Edit Book</h1>
         </div>
       </header>
 
@@ -309,7 +309,7 @@ export default function BookEditor() {
 
             {error && (
               <div className="error">
-                <p>❌ {error}</p>
+                <p>{error}</p>
               </div>
             )}
 
@@ -401,14 +401,13 @@ export default function BookEditor() {
       <style>{`
         .book-editor {
           min-height: 100vh;
-          background: #f5f5f5;
+          background: #ffffff;
         }
 
         .editor-header {
-          background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-          color: white;
-          padding: 2rem;
-          box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+          background: transparent;
+          color: #1a1f3a;
+          padding: 4rem 2rem 2rem;
         }
 
         .header-content {
@@ -418,7 +417,20 @@ export default function BookEditor() {
 
         .header-content h1 {
           margin: 0;
-          font-size: 2rem;
+          font-size: 3rem;
+          font-weight: 800;
+          color: #1a1f3a !important;
+          background: none !important;
+          -webkit-background-clip: unset !important;
+          -webkit-text-fill-color: #1a1f3a !important;
+          background-clip: unset !important;
+          line-height: 1.2;
+        }
+
+        @media (max-width: 768px) {
+          .header-content h1 {
+            font-size: 2rem;
+          }
         }
 
         .editor-content {
@@ -468,7 +480,8 @@ export default function BookEditor() {
 
         .book-name-input:focus {
           outline: none;
-          border-color: #667eea;
+          border-color: #ff6b35;
+          box-shadow: 0 0 0 3px rgba(255, 107, 53, 0.1);
         }
 
         .selection-info {
@@ -505,7 +518,7 @@ export default function BookEditor() {
         }
 
         .btn-secondary {
-          background: #6c757d;
+          background: #6b7280;
           color: white;
           padding: 0.75rem 1.5rem;
           border: none;
@@ -517,7 +530,7 @@ export default function BookEditor() {
         }
 
         .btn-secondary:hover {
-          background: #5a6268;
+          background: #4b5563;
         }
 
         .instruction-text {
@@ -541,7 +554,7 @@ export default function BookEditor() {
         .recipe-number {
           font-size: 1.2rem;
           font-weight: 700;
-          color: #667eea;
+          color: #1a1f3a;
           min-width: 30px;
           text-align: right;
         }
@@ -559,8 +572,8 @@ export default function BookEditor() {
         }
 
         .sortable-recipe-item:hover {
-          border-color: #667eea;
-          box-shadow: 0 2px 8px rgba(102, 126, 234, 0.2);
+          border-color: #ff6b35;
+          box-shadow: 0 2px 8px rgba(255, 107, 53, 0.2);
         }
 
         .drag-handle {
@@ -593,22 +606,22 @@ export default function BookEditor() {
         }
 
         .btn-remove {
-          background: #ff4444;
-          color: white;
+          background: none;
+          color: #1a1f3a;
           border: none;
-          border-radius: 50%;
-          width: 32px;
-          height: 32px;
           font-size: 1.2rem;
           cursor: pointer;
-          transition: background 0.2s;
+          transition: opacity 0.2s;
           display: flex;
           align-items: center;
           justify-content: center;
+          padding: 0;
+          width: auto;
+          height: auto;
         }
 
         .btn-remove:hover {
-          background: #cc0000;
+          opacity: 0.7;
         }
 
         .available-recipes-list {
@@ -636,12 +649,12 @@ export default function BookEditor() {
         }
 
         .available-recipe-item:hover {
-          border-color: #667eea;
+          border-color: #ff6b35;
           background: #f8f9fa;
         }
 
         .btn-add {
-          background: #28a745;
+          background: #10b981;
           color: white;
           border: none;
           border-radius: 50%;
@@ -656,7 +669,7 @@ export default function BookEditor() {
         }
 
         .btn-add:hover:not(:disabled) {
-          background: #218838;
+          background: #059669;
         }
 
         .btn-add:disabled {

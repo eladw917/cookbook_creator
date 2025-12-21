@@ -1,13 +1,22 @@
 :root {
   --primary: #ff6b35;
   --primary-dark: #e85a2a;
-  --secondary: #004e89;
+  --secondary: #6b7280;
+  --background: #ffffff;
+  --surface: #f8f9fa;
+  --surface-light: #ffffff;
+  --text: #1a1f3a;
+  --text-muted: #6b7280;
+  --success: #10b981;
+  --border: #e5e7eb;
+}
+
+:root.dark {
   --background: #0a0e27;
   --surface: #1a1f3a;
   --surface-light: #252b4a;
   --text: #e8eaf6;
   --text-muted: #9fa8da;
-  --success: #4caf50;
   --border: #3d4466;
 }
 
@@ -385,38 +394,45 @@ header p {
 }
 
 .btn-primary {
-  padding: 0.5rem 1.5rem;
-  background: linear-gradient(135deg, var(--primary), var(--primary-dark));
+  padding: 0.75rem 1.5rem;
+  background: #1a1f3a;
   border: none;
   border-radius: 8px;
   color: white;
-  font-size: 0.9rem;
+  font-size: 1rem;
   font-weight: 600;
   cursor: pointer;
-  transition: all 0.3s ease;
-  box-shadow: 0 2px 8px rgba(255, 107, 53, 0.3);
+  transition: all 0.2s ease;
 }
 
 .btn-primary:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 4px 16px rgba(255, 107, 53, 0.4);
+  background: #2d3550;
+  transform: translateY(-1px);
+}
+
+.btn-primary.orange {
+  background: var(--primary);
+}
+
+.btn-primary.orange:hover {
+  background: var(--primary-dark);
 }
 
 .btn-secondary {
-  padding: 0.5rem 1.5rem;
+  padding: 0.75rem 1.5rem;
   background: var(--secondary);
   border: none;
   border-radius: 8px;
   color: white;
-  font-size: 0.9rem;
+  font-size: 1rem;
   font-weight: 600;
   cursor: pointer;
-  transition: all 0.3s ease;
+  transition: all 0.2s ease;
 }
 
 .btn-secondary:hover {
-  background: #003d6b;
-  transform: translateY(-2px);
+  background: #4b5563;
+  transform: translateY(-1px);
 }
 
 .btn-clear {

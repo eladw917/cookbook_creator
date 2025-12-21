@@ -20,7 +20,8 @@ from services import (
     get_transcript,
     extract_recipe_gemini,
     extract_timestamps_gemini,
-    extract_best_frame
+    extract_best_frame,
+    validate_is_recipe_video
 )
 import pdf_service
 import database
@@ -36,13 +37,24 @@ app = FastAPI(title="Recipe Extract API")
 
 async def generate_pdf_background(video_id: str):
     """Background task to generate PDF after visuals are complete"""
+    print(f"========================================")
+    print(f"BACKGROUND TASK STARTED: PDF generation for {video_id}")
+    print(f"========================================")
     try:
-        print(f"DEBUG: Starting background PDF generation for video {video_id}")
+        print(f"[{video_id}] Generating PDF...")
         await pdf_service.generate_or_load_pdf(video_id, force_regenerate=False)
-        print(f"DEBUG: Background PDF generation completed for video {video_id}")
+        print(f"[{video_id}] PDF generation completed successfully")
+        print(f"========================================")
+        print(f"BACKGROUND TASK COMPLETED: PDF generation for {video_id}")
+        print(f"========================================")
     except Exception as e:
+        import traceback
         # Log error but don't crash - PDF generation is not critical
-        print(f"ERROR: Background PDF generation failed for video {video_id}: {e}")
+        print(f"========================================")
+        print(f"BACKGROUND TASK FAILED: PDF generation for {video_id}")
+        print(f"Error: {e}")
+        print(f"Traceback: {traceback.format_exc()}")
+        print(f"========================================")
 
 # CORS middleware for frontend
 # Allow origins from environment variable, default to localhost for development
@@ -142,24 +154,54 @@ async def extract_recipe(
         # Extract video ID from URL
         video_id = request.url.split("v=")[-1].split("&")[0]
         
-        # Get metadata and transcript
+        # Get metadata
         metadata = get_video_metadata(request.url)
+        
+        # Validate if this is a recipe video using Gemma
+        validation_result = validate_is_recipe_video(metadata, request.url)
+        if not validation_result.get("is_recipe", True):
+            # Not a recipe video - return error
+            raise HTTPException(
+                status_code=400,
+                detail={
+                    "error": "not_recipe_video",
+                    "message": "This video does not appear to be a recipe video",
+                    "suggestion": "Please try a cooking tutorial or recipe video"
+                }
+            )
+        
+        # Get transcript (only if validation passed)
+        # Note: get_transcript returns empty list if no transcript available
         transcript = get_transcript(video_id)
+        no_transcript_warning = False
+        
+        # Warn if no transcript but still proceed
+        if not transcript:
+            print(f"WARNING: No transcript available for video {video_id}. Extracting recipe from title and description only.")
+            no_transcript_warning = True
         
         # Combine into input JSON
         input_data = {
             "title": metadata.get("title"),
             "description": metadata.get("description"),
-            "transcript": transcript
+            "transcript": transcript if transcript else []  # Ensure it's always a list
         }
         
-        # Extract recipe using Gemini
+        # Extract recipe using Gemini (can work with just title/description if transcript is empty)
         recipe = extract_recipe_gemini(input_data, request.url)
 
         # Add video URL and channel info to recipe data
         recipe["video_url"] = request.url
         if metadata.get("channel_name"):
             recipe["channel_name"] = metadata.get("channel_name")
+        
+        # Add warning if no transcript was available
+        if no_transcript_warning:
+            recipe["_warnings"] = {
+                "no_transcript": True,
+                "message": "No transcript was available for this video. Recipe was extracted from title and description only.",
+                "suggestion": "The recipe may be less detailed than videos with transcripts."
+            }
 
         # If user is authenticated, save to database
         if current_user:
@@ -181,6 +223,9 @@ async def extract_recipe(
 
         return recipe
         
+    except HTTPException:
+        # Re-raise HTTPException (e.g., validation errors)
+        raise
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
@@ -190,6 +235,7 @@ async def extract_recipe(
 @app.post("/api/recipes")
 async def save_recipe_to_collection(
     request: SaveRecipeRequest,
+    background_tasks: BackgroundTasks,
     current_user: models.User = Depends(auth.get_current_user),
     db: Session = Depends(database.get_db)
 ):
@@ -202,22 +248,55 @@ async def save_recipe_to_collection(
         
         # Check if recipe already exists in database
         db_recipe = crud.get_recipe_by_video_id(db, video_id)
+        recipe_was_new = False
         
         if not db_recipe:
             # Recipe doesn't exist, need to extract it
+            recipe_was_new = True
             metadata = get_video_metadata(request.url)
+            
+            # Validate if this is a recipe video using Gemma
+            validation_result = validate_is_recipe_video(metadata, request.url)
+            if not validation_result.get("is_recipe", True):
+                # Not a recipe video - return error
+                raise HTTPException(
+                    status_code=400,
+                    detail={
+                        "error": "not_recipe_video",
+                        "message": "This video does not appear to be a recipe video",
+                        "suggestion": "Please try a cooking tutorial or recipe video"
+                    }
+                )
+            
+            # Get transcript (only if validation passed)
+            # Note: get_transcript returns empty list if no transcript available
             transcript = get_transcript(video_id)
+            no_transcript_warning = False
+            
+            # Warn if no transcript but still proceed
+            if not transcript:
+                print(f"WARNING: No transcript available for video {video_id}. Extracting recipe from title and description only.")
+                no_transcript_warning = True
             
             input_data = {
                 "title": metadata.get("title"),
                 "description": metadata.get("description"),
-                "transcript": transcript
+                "transcript": transcript if transcript else []  # Ensure it's always a list
             }
             
+            # Extract recipe using Gemini (can work with just title/description if transcript is empty)
             recipe_data = extract_recipe_gemini(input_data, request.url)
             recipe_data["video_url"] = request.url
             if metadata.get("channel_name"):
                 recipe_data["channel_name"] = metadata.get("channel_name")
+            
+            # Add warning if no transcript was available
+            if no_transcript_warning:
+                recipe_data["_warnings"] = {
+                    "no_transcript": True,
+                    "message": "No transcript was available for this video. Recipe was extracted from title and description only.",
+                    "suggestion": "The recipe may be less detailed than videos with transcripts."
+                }
             
             # Create recipe in database
             db_recipe = crud.create_recipe(
@@ -229,19 +308,177 @@ async def save_recipe_to_collection(
                 channel_name=metadata.get("channel_name")
             )
         
-        # Add to user's collection
+        # Check if recipe is already in user's collection
+        recipe_already_in_collection = crud.user_has_recipe(db, current_user.id, db_recipe.id)
+        
+        # Schedule image extraction and PDF generation in background if needed
+        import cache_manager
+        existing_image = cache_manager.load_frame(video_id, "dish_visual")
+        existing_pdf = (cache_manager.get_video_cache_dir(video_id) / "recipe.pdf").exists()
+        
+        # Extract key steps from recipe for timestamp extraction
+        # Try to get recipe_data from database first, then from cache as fallback
+        recipe_data = {}
+        if hasattr(db_recipe, 'recipe_data') and db_recipe.recipe_data:
+            recipe_data = db_recipe.recipe_data
+        else:
+            # Fallback: try loading from cache
+            cached_recipe = cache_manager.load_step(video_id, "recipe")
+            if cached_recipe:
+                recipe_data = cached_recipe
+        
+        print(f"[{video_id}] DEBUG: Recipe data keys: {list(recipe_data.keys()) if recipe_data else 'None'}")
+        
+        key_steps = {}
+        # Check for 'instructions' (plural) which is what the recipe extraction returns
+        instructions = recipe_data.get("instructions", [])
+        if instructions:
+            print(f"[{video_id}] DEBUG: Found {len(instructions)} instructions in recipe_data")
+            for i, instruction in enumerate(instructions, 1):
+                if isinstance(instruction, dict):
+                    # Only include steps marked as key steps
+                    if instruction.get("is_key_step"):
+                        instruction_text = instruction.get("instruction", instruction.get("step", instruction.get("text", "")))
+                        if instruction_text:
+                            key_steps[str(i)] = instruction_text
+                elif isinstance(instruction, str):
+                    # If instruction is just a string, include it (legacy support)
+                    key_steps[str(i)] = instruction
+                else:
+                    instruction_text = str(instruction)
+                    if instruction_text:
+                        key_steps[str(i)] = instruction_text
+            print(f"[{video_id}] DEBUG: Extracted {len(key_steps)} key steps (marked as is_key_step): {list(key_steps.keys())}")
+        # Also check for 'steps' as fallback
+        elif "steps" in recipe_data and recipe_data["steps"]:
+            print(f"[{video_id}] DEBUG: Found {len(recipe_data['steps'])} steps in recipe_data")
+            for i, step in enumerate(recipe_data["steps"], 1):
+                if isinstance(step, dict):
+                    # Only include steps marked as key steps
+                    if step.get("is_key_step"):
+                        instruction_text = step.get("instruction", step.get("step", ""))
+                        if instruction_text:
+                            key_steps[str(i)] = instruction_text
+                elif isinstance(step, str):
+                    # If step is just a string, include it (legacy support)
+                    key_steps[str(i)] = step
+                else:
+                    instruction_text = str(step)
+                    if instruction_text:
+                        key_steps[str(i)] = instruction_text
+            print(f"[{video_id}] DEBUG: Extracted {len(key_steps)} key steps (marked as is_key_step): {list(key_steps.keys())}")
+        else:
+            print(f"[{video_id}] DEBUG: No instructions/steps found in recipe_data. Available keys: {list(recipe_data.keys()) if recipe_data else 'None'}")
+        
+        # Schedule image extraction if missing
+        if not existing_image:
+            if key_steps:
+                try:
+                    print(f"========================================")
+                    print(f"SCHEDULING: Background image extraction for {video_id}")
+                    print(f"Reason: Image missing, {len(key_steps)} steps available")
+                    print(f"========================================")
+                    background_tasks.add_task(extract_recipe_images_background, request.url, key_steps, video_id)
+                    print(f"[{video_id}] ✓ Background image extraction task scheduled")
+                except Exception as e:
+                    print(f"[{video_id}] ✗ Failed to schedule background image task: {e}")
+            else:
+                print(f"[{video_id}] ⚠ Skipping image extraction: No key steps available")
+        else:
+            print(f"[{video_id}] ✓ Image already exists, skipping extraction")
+        
+        # Schedule PDF generation if missing
+        if not existing_pdf:
+            try:
+                print(f"========================================")
+                print(f"SCHEDULING: Background PDF generation for {video_id}")
+                print(f"Reason: PDF missing")
+                print(f"========================================")
+                background_tasks.add_task(generate_pdf_background, video_id)
+                print(f"[{video_id}] ✓ Background PDF generation task scheduled")
+            except Exception as e:
+                print(f"[{video_id}] ✗ Failed to schedule background PDF task: {e}")
+        else:
+            print(f"[{video_id}] ✓ PDF already exists, skipping generation")
+        
+        # Add to user's collection (or return success if already exists)
+        # Include warnings in response if present
+        response_recipe = db_recipe.recipe_data.copy() if db_recipe.recipe_data else {}
+        if no_transcript_warning and "_warnings" not in response_recipe:
+            response_recipe["_warnings"] = {
+                "no_transcript": True,
+                "message": "No transcript was available for this video. Recipe was extracted from title and description only.",
+                "suggestion": "The recipe may be less detailed than videos with transcripts."
+            }
+        
+        if recipe_already_in_collection:
+            return {
+                "message": "Recipe already in collection",
+                "recipe_id": db_recipe.id,
+                "recipe": response_recipe
+            }
+        
         try:
             crud.add_recipe_to_user(db, current_user.id, db_recipe.id)
             return {
                 "message": "Recipe added to collection",
                 "recipe_id": db_recipe.id,
-                "recipe": db_recipe.recipe_data
+                "recipe": response_recipe
             }
         except ValueError as e:
             raise HTTPException(status_code=400, detail=str(e))
         
+    except HTTPException:
+        raise
     except Exception as e:
+        import traceback
+        print(f"ERROR: Failed to save recipe to collection: {e}")
+        print(f"ERROR: Traceback: {traceback.format_exc()}")
         raise HTTPException(status_code=500, detail=str(e))
+
+
+def extract_recipe_images_background(video_url: str, key_steps: dict, video_id: str):
+    """
+    Background task to extract recipe images (timestamps and dish_visual frame)
+    """
+    print(f"========================================")
+    print(f"BACKGROUND TASK STARTED: Image extraction for {video_id}")
+    print(f"Video URL: {video_url}")
+    print(f"Key steps count: {len(key_steps)}")
+    print(f"========================================")
+    
+    try:
+        print(f"[{video_id}] STEP 1: Getting timestamps from Gemini...")
+        timestamps = extract_timestamps_gemini(video_url, key_steps)
+        print(f"[{video_id}] STEP 1 COMPLETE: Got timestamps: {list(timestamps.keys())}")
+        
+        # Extract ONLY the dish_visual frame (hero image)
+        if "dish_visual" in timestamps and timestamps["dish_visual"] and timestamps["dish_visual"] != "null":
+            print(f"[{video_id}] STEP 2: Extracting dish_visual frame at timestamp {timestamps['dish_visual']}...")
+            result = extract_best_frame(
+                video_url,
+                timestamps["dish_visual"],
+                "Visual reference",
+                "dish_visual"  # cache key
+            )
+            if result:
+                print(f"[{video_id}] STEP 2 COMPLETE: Successfully extracted and saved dish_visual frame")
+            else:
+                print(f"[{video_id}] STEP 2 FAILED: extract_best_frame returned None")
+        else:
+            print(f"[{video_id}] STEP 2 SKIPPED: No dish_visual timestamp found in {timestamps}")
+        
+        print(f"========================================")
+        print(f"BACKGROUND TASK COMPLETED: Image extraction for {video_id}")
+        print(f"========================================")
+            
+    except Exception as e:
+        import traceback
+        print(f"========================================")
+        print(f"BACKGROUND TASK FAILED: Image extraction for {video_id}")
+        print(f"Error: {e}")
+        print(f"Traceback: {traceback.format_exc()}")
+        print(f"========================================")
 
 
 @app.get("/api/recipes")
@@ -588,6 +825,36 @@ async def clear_video_cache(video_id: str):
     try:
         cache_manager.clear_cache(video_id)
         return {"message": f"Cache cleared for video {video_id}"}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.get("/api/cache/{video_id}/image")
+async def get_recipe_image(video_id: str):
+    """
+    Get the dish_visual image for a recipe.
+    Returns the image as JPEG if available, otherwise 404.
+    """
+    import cache_manager
+    from fastapi.responses import Response
+    
+    try:
+        # Load the dish_visual frame
+        frame_data = cache_manager.load_frame(video_id, "dish_visual")
+        
+        if not frame_data:
+            raise HTTPException(status_code=404, detail="Recipe image not found")
+        
+        return Response(
+            content=frame_data,
+            media_type="image/jpeg",
+            headers={
+                "Cache-Control": "public, max-age=31536000"  # Cache for 1 year
+            }
+        )
+        
+    except HTTPException:
+        raise
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 

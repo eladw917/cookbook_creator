@@ -1,8 +1,12 @@
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { SignIn, useUser } from '@clerk/clerk-react'
-import { useAuth } from '../contexts/AuthContext'
 import Navigation from './Navigation'
+import logoImage from '../assets/Gemini_Generated_Image_ooiexwooiexwooie.png'
+import heroImage from '../assets/Gemini_Generated_Image_rtd832rtd832rtd8.png'
+import step1Icon from '../assets/video_library_24dp_1F1F1F_FILL0_wght400_GRAD0_opsz24.png'
+import step2Icon from '../assets/auto_awesome_mosaic_24dp_1F1F1F_FILL0_wght400_GRAD0_opsz24.png'
+import step3Icon from '../assets/local_shipping_24dp_1F1F1F_FILL0_wght400_GRAD0_opsz24.png'
 
 export default function LandingPage() {
   const [url, setUrl] = useState('')
@@ -23,9 +27,9 @@ export default function LandingPage() {
       return
     }
 
-    // If already signed in, go directly to recipe extraction
+    // If already signed in, go to recipes page
     if (isSignedIn) {
-      navigate('/recipes/new', { state: { url } })
+      navigate('/recipes')
       return
     }
 
@@ -36,8 +40,8 @@ export default function LandingPage() {
 
   // When user signs in, navigate appropriately
   if (isSignedIn && pendingUrl) {
-    // User entered URL before signing in - go to extraction
-    navigate('/recipes/new', { state: { url: pendingUrl } })
+    // User entered URL before signing in - go to recipes page
+    navigate('/recipes')
   } else if (isSignedIn && showLogin) {
     // User just signed in without URL - go to recipes page
     navigate('/recipes')
@@ -46,60 +50,68 @@ export default function LandingPage() {
   return (
     <div className="landing-page">
       <Navigation />
-      <header className="landing-header">
-        <h1>🍳 Cookbook Creator</h1>
-      </header>
-
-      <main className="landing-main">
-        <section className="hero">
-          <h2>Transform YouTube Cooking Videos into Beautiful Recipes</h2>
-          <p className="hero-description">
-            Extract structured recipes from your favorite cooking videos. Save
-            them to your collection and create personalized cookbooks.
-          </p>
-
-          <div className="features">
-            <div className="feature">
-              <div className="feature-icon">🎥</div>
-              <h3>AI-Powered Extraction</h3>
-              <p>
-                Automatically extract ingredients and instructions from any
-                cooking video
-              </p>
+      
+      {/* Hero Section */}
+      <section className="hero-section">
+        <div className="hero-container">
+          <div className="hero-left">
+            <h1 className="hero-headline">
+              Bring Your Favorite Online Chefs Into Your Kitchen
+            </h1>
+            <p className="hero-description">
+              Stop pausing and rewinding. Build colorful, personalized cookbooks tailored by you, featuring your most-loved recipes from your favorite chefs.
+            </p>
+            
+            <div className="how-it-works">
+              <h2 className="how-it-works-title">How does it work?</h2>
+              <div className="how-it-works-steps">
+                <div className="how-it-works-step">
+                  <div className="step-content">
+                    <img src={step1Icon} alt="Add recipes" className="step-icon" />
+                    <p className="step-text">Add 5+ of your favorite recipes</p>
+                  </div>
+                </div>
+                <div className="how-it-works-step">
+                  <div className="step-content">
+                    <img src={step2Icon} alt="Arrange recipes" className="step-icon" />
+                    <p className="step-text">Arrange them however you like</p>
+                  </div>
+                </div>
+                <div className="how-it-works-step">
+                  <div className="step-content">
+                    <img src={step3Icon} alt="Order cookbook" className="step-icon" />
+                    <p className="step-text">Order a physical cookbook tailored to you</p>
+                  </div>
+                </div>
+              </div>
             </div>
-            <div className="feature">
-              <div className="feature-icon">📚</div>
-              <h3>Personal Collection</h3>
-              <p>Save recipes to your collection and organize them your way</p>
-            </div>
-            <div className="feature">
-              <div className="feature-icon">📖</div>
-              <h3>Create Cookbooks</h3>
-              <p>Combine 5-20 recipes into beautiful PDF cookbooks</p>
-            </div>
-          </div>
-
-          <div className="cta-section">
-            <h3>Get Started with Your First Recipe</h3>
-            <div className="url-input-container">
-              <input
-                type="text"
-                placeholder="Paste YouTube video URL here..."
-                value={url}
-                onChange={e => setUrl(e.target.value)}
-                className="url-input-large"
-                disabled={showLogin}
-              />
+            
+            <div className="hero-input-container">
+              <div className="input-wrapper">
+                <span className="input-icon">∞</span>
+                <input
+                  type="text"
+                  placeholder="Paste YouTube URL here..."
+                  value={url}
+                  onChange={e => setUrl(e.target.value)}
+                  className="hero-input"
+                  disabled={showLogin}
+                  onKeyPress={e => {
+                    if (e.key === 'Enter') {
+                      handleGetStarted()
+                    }
+                  }}
+                />
+              </div>
               {!showLogin ? (
                 <button
-                  className="btn-primary btn-large"
+                  className="btn-primary hero-button"
                   onClick={handleGetStarted}
                 >
-                  Get Started →
+                  GET STARTED
                 </button>
               ) : (
                 <div className="clerk-signin-container">
-                  <p>Sign in to continue:</p>
                   <SignIn
                     appearance={{
                       elements: {
@@ -120,198 +132,291 @@ export default function LandingPage() {
                 </div>
               )}
             </div>
+            
+            <p className="hero-subtext">
+              Try it free. No credit card required.
+            </p>
           </div>
-        </section>
+          
+          <div className="hero-right">
+            <div className="hero-image-wrapper">
+              <img
+                src={heroImage}
+                alt="Fresh ingredients in a bowl"
+                className="hero-image"
+              />
+            </div>
+          </div>
+        </div>
+      </section>
 
-        <section className="how-it-works">
-          <h3>How It Works</h3>
-          <div className="steps">
-            <div className="step">
-              <div className="step-number">1</div>
-              <h4>Paste URL</h4>
-              <p>Copy a YouTube cooking video URL</p>
-            </div>
-            <div className="step">
-              <div className="step-number">2</div>
-              <h4>Sign In</h4>
-              <p>Quick sign in with Google or email</p>
-            </div>
-            <div className="step">
-              <div className="step-number">3</div>
-              <h4>Extract Recipe</h4>
-              <p>AI extracts the recipe automatically</p>
-            </div>
-            <div className="step">
-              <div className="step-number">4</div>
-              <h4>Build Collection</h4>
-              <p>Save recipes and create cookbooks</p>
-            </div>
+      {/* Footer */}
+      <footer className="landing-footer">
+        <div className="footer-container">
+          <div className="footer-logo">
+            <img src={logoImage} alt="Cookbook Creator Logo" className="footer-logo-icon" />
+            <span className="footer-logo-text">Cookbook Creator</span>
           </div>
-        </section>
-      </main>
+          <div className="footer-copyright">
+            © 2024 Cookbook Creator. All rights reserved.
+          </div>
+        </div>
+      </footer>
 
       <style>{`
         .landing-page {
           min-height: 100vh;
-          background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+          background: #ffffff;
         }
 
-        .landing-header {
-          padding: 2rem;
-          text-align: center;
-          color: white;
+        /* Hero Section */
+        .hero-section {
+          padding: 4rem 2rem;
+          max-width: 1400px;
+          margin: 0 auto;
         }
 
-        .landing-header h1 {
-          font-size: 2.5rem;
+        .hero-container {
+          display: grid;
+          grid-template-columns: 1fr 1fr;
+          gap: 4rem;
+          align-items: center;
+        }
+
+        @media (max-width: 968px) {
+          .hero-container {
+            grid-template-columns: 1fr;
+            gap: 2rem;
+          }
+        }
+
+        .hero-left {
+          display: flex;
+          flex-direction: column;
+          gap: 1.5rem;
+        }
+
+        .hero-headline {
+          font-size: 3rem;
+          font-weight: 800;
+          color: #1a1f3a;
+          line-height: 1.2;
           margin: 0;
         }
 
-        .landing-main {
-          max-width: 1200px;
-          margin: 0 auto;
-          padding: 2rem;
-        }
-
-        .hero {
-          background: white;
-          border-radius: 20px;
-          padding: 3rem;
-          margin-bottom: 3rem;
-          box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
-        }
-
-        .hero h2 {
-          font-size: 2.5rem;
-          color: #333;
-          margin-bottom: 1rem;
-          text-align: center;
+        @media (max-width: 768px) {
+          .hero-headline {
+            font-size: 2rem;
+          }
         }
 
         .hero-description {
-          font-size: 1.2rem;
-          color: #666;
-          text-align: center;
-          margin-bottom: 3rem;
-        }
-
-        .features {
-          display: grid;
-          grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
-          gap: 2rem;
-          margin-bottom: 3rem;
-        }
-
-        .feature {
-          text-align: center;
-          padding: 1.5rem;
-        }
-
-        .feature-icon {
-          font-size: 3rem;
-          margin-bottom: 1rem;
-        }
-
-        .feature h3 {
-          color: #333;
-          margin-bottom: 0.5rem;
-        }
-
-        .feature p {
-          color: #666;
-          font-size: 0.95rem;
-        }
-
-        .cta-section {
-          background: #f8f9fa;
-          border-radius: 15px;
-          padding: 2rem;
-          text-align: center;
-        }
-
-        .cta-section h3 {
-          color: #333;
-          margin-bottom: 1.5rem;
-        }
-
-        .url-input-container {
-          display: flex;
-          flex-direction: column;
-          gap: 1rem;
-          max-width: 600px;
-          margin: 0 auto;
-        }
-
-        .url-input-large {
-          padding: 1rem;
-          font-size: 1.1rem;
-          border: 2px solid #ddd;
-          border-radius: 10px;
-          width: 100%;
-        }
-
-        .btn-large {
-          padding: 1rem 2rem;
-          font-size: 1.1rem;
-          font-weight: 600;
-        }
-
-        .clerk-signin-container {
-          display: flex;
-          flex-direction: column;
-          align-items: center;
-          gap: 1rem;
-          padding: 1rem;
-          background: white;
-          border-radius: 10px;
+          font-size: 1.125rem;
+          color: #6b7280;
+          line-height: 1.6;
+          margin: 0;
         }
 
         .how-it-works {
-          background: white;
-          border-radius: 20px;
-          padding: 3rem;
-          box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+          margin: 2rem 0;
         }
 
-        .how-it-works h3 {
-          text-align: center;
-          font-size: 2rem;
-          color: #333;
-          margin-bottom: 2rem;
+        .how-it-works-title {
+          font-size: 1.5rem;
+          font-weight: 700;
+          color: #1a1f3a;
+          margin: 0 0 1.5rem;
         }
 
-        .steps {
-          display: grid;
-          grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+        .how-it-works-steps {
+          display: flex;
+          flex-direction: row;
           gap: 2rem;
+          flex-wrap: wrap;
         }
 
-        .step {
+        @media (max-width: 768px) {
+          .how-it-works-steps {
+            flex-direction: column;
+            gap: 1.5rem;
+          }
+        }
+
+        .how-it-works-step {
+          display: flex;
+          flex-direction: column;
+          align-items: center;
           text-align: center;
+          flex: 1;
+          min-width: 150px;
         }
 
         .step-number {
-          width: 60px;
-          height: 60px;
-          background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+          width: 40px;
+          height: 40px;
+          background: #ff6b35;
           color: white;
           border-radius: 50%;
           display: flex;
           align-items: center;
           justify-content: center;
-          font-size: 1.5rem;
-          font-weight: bold;
-          margin: 0 auto 1rem;
+          font-weight: 700;
+          font-size: 1.125rem;
+          margin-bottom: 0.75rem;
         }
 
-        .step h4 {
-          color: #333;
-          margin-bottom: 0.5rem;
+        .step-content {
+          display: flex;
+          flex-direction: column;
+          align-items: center;
+          gap: 0.5rem;
         }
 
-        .step p {
-          color: #666;
-          font-size: 0.95rem;
+        .step-icon {
+          width: 24px;
+          height: 24px;
+          object-fit: contain;
+          margin-bottom: 0.25rem;
+        }
+
+        .step-text {
+          font-size: 1rem;
+          color: #6b7280;
+          margin: 0;
+          line-height: 1.4;
+        }
+
+        .hero-input-container {
+          display: flex;
+          gap: 1rem;
+          flex-wrap: wrap;
+        }
+
+        .input-wrapper {
+          flex: 1;
+          min-width: 300px;
+          position: relative;
+          display: flex;
+          align-items: center;
+        }
+
+        .input-icon {
+          position: absolute;
+          left: 1rem;
+          font-size: 1.25rem;
+          color: #6b7280;
+        }
+
+        .hero-input {
+          width: 100%;
+          padding: 1rem 1rem 1rem 3rem;
+          border: 1px solid #e5e7eb;
+          border-radius: 8px;
+          font-size: 1rem;
+          background: white;
+          color: #1a1f3a;
+        }
+
+        .hero-input:focus {
+          outline: none;
+          border-color: #ff6b35;
+          box-shadow: 0 0 0 3px rgba(255, 107, 53, 0.1);
+        }
+
+        .hero-input:disabled {
+          background: #f3f4f6;
+          cursor: not-allowed;
+        }
+
+        .hero-button {
+          padding: 1rem 2rem;
+          font-size: 1rem;
+          white-space: nowrap;
+        }
+
+        .hero-subtext {
+          font-size: 0.875rem;
+          color: #9ca3af;
+          margin: 0;
+        }
+
+        .hero-right {
+          display: flex;
+          justify-content: center;
+          align-items: center;
+        }
+
+        .hero-image-wrapper {
+          position: relative;
+          width: 100%;
+          max-width: 600px;
+          border-radius: 12px;
+          overflow: hidden;
+          box-shadow: 0 20px 60px rgba(0, 0, 0, 0.15);
+        }
+
+        .hero-image {
+          width: 100%;
+          height: auto;
+          display: block;
+        }
+
+
+        .clerk-signin-container {
+          width: 100%;
+          display: flex;
+          flex-direction: column;
+          align-items: center;
+          gap: 1rem;
+          padding: 1rem;
+          background: white;
+          border-radius: 8px;
+        }
+
+        /* Footer */
+        .landing-footer {
+          padding: 2rem;
+          border-top: 1px solid #e5e7eb;
+          background: white;
+        }
+
+        .footer-container {
+          max-width: 1400px;
+          margin: 0 auto;
+          display: flex;
+          justify-content: space-between;
+          align-items: center;
+        }
+
+        @media (max-width: 768px) {
+          .footer-container {
+            flex-direction: column;
+            gap: 1rem;
+            text-align: center;
+          }
+        }
+
+        .footer-logo {
+          display: flex;
+          align-items: center;
+          gap: 0.75rem;
+        }
+
+        .footer-logo-icon {
+          height: 3rem;
+          width: auto;
+          object-fit: contain;
+        }
+
+        .footer-logo-text {
+          font-size: 1.25rem;
+          font-weight: 700;
+          color: #1a1f3a;
+        }
+
+        .footer-copyright {
+          font-size: 0.875rem;
+          color: #9ca3af;
         }
       `}</style>
     </div>

@@ -10,7 +10,7 @@ import yt_dlp
 from google import genai
 from google.genai import types
 import cache_manager
-from prompts import recipe_extraction, timestamp_extraction
+from prompts import recipe_extraction, timestamp_extraction, recipe_validation
 
 # Initialize Gemini client
 api_key = os.getenv("GEMINI_API_KEY") or os.getenv("GOOGLE_API_KEY")
@@ -51,8 +51,135 @@ def get_video_metadata(url: str) -> dict:
         return metadata
 
 
+def validate_is_recipe_video(metadata: dict, video_url: str) -> dict:
+    """
+    Validate if a video is a recipe/cooking video using Gemini Flash Lite.
+    Uses only metadata (title + description) for fast, cost-effective validation.
+    
+    Args:
+        metadata: Dict with 'title' and 'description' keys
+        video_url: Video URL for cache key generation
+        
+    Returns:
+        Dict with 'is_recipe' (bool), 'confidence' (float), 'reason' (str)
+    """
+    # Extract video ID for caching
+    video_id = video_url.split("v=")[-1].split("&")[0]
+    
+    # Check cache first
+    cached_validation = cache_manager.load_step(video_id, "validation")
+    if cached_validation:
+        return cached_validation
+    
+    # Prepare input for validation (only title and description)
+    validation_input = {
+        "title": metadata.get("title", ""),
+        "description": metadata.get("description", "")
+    }
+    
+    prompt = recipe_validation.RECIPE_VALIDATION_PROMPT.format(
+        metadata=json.dumps(validation_input)
+    )
+    
+    def clean_json(text: str) -> str:
+        """Remove trailing commas from JSON string"""
+        text = re.sub(r',\s*}', '}', text)
+        text = re.sub(r',\s*]', ']', text)
+        return text
+    
+    try:
+        print(f"DEBUG: Validating video {video_id} with Gemini Flash Lite...")
+        print(f"DEBUG: Video title: {metadata.get('title', 'N/A')}")
+        print(f"DEBUG: Video description length: {len(metadata.get('description', ''))} chars")
+        # Use Gemini Flash Lite for validation (lightweight and cost-effective)
+        model_name = 'gemini-flash-lite-latest'
+        
+        try:
+            response = client.models.generate_content(
+                model=model_name,
+                contents=prompt,
+            )
+            print(f"DEBUG: Successfully used {model_name} for validation")
+        except Exception as e:
+            error_msg = f"Validation model failed: {e}"
+            print(f"ERROR: {error_msg}")
+            raise Exception(error_msg)
+        
+        print("DEBUG: Received validation response from Gemma")
+        
+        # Extract JSON from response
+        json_pattern = r'```(?:json)?\s*(\{.*?\})\s*```'
+        matches = re.findall(json_pattern, response.text, re.DOTALL)
+        
+        json_text = None
+        if matches:
+            print("DEBUG: Found JSON block in validation response")
+            json_text = matches[0]
+        else:
+            print("DEBUG: No JSON block found, trying to parse full text")
+            json_text = response.text
+        
+        # Clean and parse JSON
+        json_text = clean_json(json_text)
+        print(f"DEBUG: Parsing validation JSON (first 200 chars): {json_text[:200]}")
+        
+        try:
+            validation_result = json.loads(json_text)
+            
+            # Ensure required fields exist
+            if "is_recipe" not in validation_result:
+                raise ValueError("Missing 'is_recipe' field in validation response")
+            if "confidence" not in validation_result:
+                validation_result["confidence"] = 0.5  # Default confidence
+            if "reason" not in validation_result:
+                validation_result["reason"] = "Validation completed"
+            
+            # Cache the result
+            cache_manager.save_step(video_id, "validation", validation_result)
+            return validation_result
+        except json.JSONDecodeError as je:
+            print(f"DEBUG: JSON parse error at position {je.pos}: {je.msg}")
+            print(f"DEBUG: Context around error: {json_text[max(0, je.pos-50):je.pos+50]}")
+            print(f"DEBUG: Full response text: {response.text[:500]}")
+            # If we can't parse the response, try to infer from the raw text
+            response_lower = response.text.lower()
+            if any(keyword in response_lower for keyword in ['not a recipe', 'not recipe', 'is_recipe": false', '"is_recipe":false']):
+                return {
+                    "is_recipe": False,
+                    "confidence": 0.6,
+                    "reason": "Validation parsing failed but response indicates non-recipe"
+                }
+            # Default to allowing through if we can't parse (conservative approach)
+            print("WARNING: Could not parse validation response, allowing video through")
+            return {
+                "is_recipe": True,
+                "confidence": 0.5,
+                "reason": "Validation parsing failed, allowing through"
+            }
+            
+    except Exception as e:
+        print(f"DEBUG: Gemma validation failed: {e}")
+        import traceback
+        print(f"DEBUG: Traceback: {traceback.format_exc()}")
+        # On error, log warning but default to allowing through (fail open)
+        # This prevents blocking valid recipes due to validation service issues
+        # However, we should investigate why validation is failing
+        print("WARNING: Validation service error - allowing video through. This may allow non-recipe videos.")
+        return {
+            "is_recipe": True,
+            "confidence": 0.3,  # Lower confidence when validation fails
+            "reason": f"Validation service error: {str(e)}"
+        }
+
+
 def get_transcript(video_id: str) -> List[str]:
-    """Fetch video transcript using YouTube Transcript API with yt-dlp fallback"""
+    """
+    Fetch video transcript using YouTube Transcript API with yt-dlp fallback.
+    
+    Returns:
+        List of transcript text segments. Returns empty list if no transcript is available.
+        Recipe extraction can still proceed using title and description only.
+    """
     print(f"DEBUG: Attempting to fetch transcript for video {video_id}")
     
     # Check cache first
@@ -71,7 +198,14 @@ def get_transcript(video_id: str) -> List[str]:
     except Exception as e:
         print(f"DEBUG: YouTubeTranscriptApi failed: {e}")
         
-        # Fallback to yt-dlp
+        # Check if it's a "No transcripts found" error - if so, return empty list
+        error_str = str(e).lower()
+        if 'no transcript' in error_str or 'transcript not found' in error_str or 'could not retrieve' in error_str:
+            print("WARNING: No transcript available for this video. Will attempt extraction from title and description only.")
+            cache_manager.save_step(video_id, "transcript", [])
+            return []
+        
+        # Fallback to yt-dlp for other errors
         print("DEBUG: Falling back to yt-dlp...")
         url = f"https://www.youtube.com/watch?v={video_id}"
         ydl_opts = {
@@ -100,7 +234,10 @@ def get_transcript(video_id: str) -> List[str]:
                 sub_url = info['automatic_captions']['en'][0]['url']
             else:
                 print("DEBUG: No subtitles found in yt-dlp info")
-                raise Exception("No subtitles found")
+                # Return empty list instead of raising - we can still extract from title/description
+                print("WARNING: No transcript available for this video. Will attempt extraction from title and description only.")
+                cache_manager.save_step(video_id, "transcript", [])
+                return []
             
             # Download and parse VTT/JSON3
             print(f"DEBUG: Fetching subtitles from {sub_url[:50]}...")
@@ -171,10 +308,16 @@ def get_transcript(video_id: str) -> List[str]:
                             return text_segments
 
                     print("DEBUG: Could not parse subtitle content")
-                    raise Exception(f"Could not parse subtitle content: {e}")
+                    # Return empty list instead of raising - we can still extract from title/description
+                    print("WARNING: Could not parse subtitle content. Will attempt extraction from title and description only.")
+                    cache_manager.save_step(video_id, "transcript", [])
+                    return []
                 except Exception as vtt_e:
                     print(f"DEBUG: VTT parsing also failed: {vtt_e}")
-                    raise Exception(f"Subtitle parsing failed for both JSON and VTT formats")
+                    # Return empty list instead of raising - we can still extract from title/description
+                    print("WARNING: Subtitle parsing failed for both JSON and VTT formats. Will attempt extraction from title and description only.")
+                    cache_manager.save_step(video_id, "transcript", [])
+                    return []
 
 
 def extract_recipe_gemini(input_data: dict, video_url: str) -> dict:

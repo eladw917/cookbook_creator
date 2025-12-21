@@ -8,7 +8,6 @@ import { AuthProvider } from './contexts/AuthContext'
 import './App.css'
 import LandingPage from './components/LandingPage'
 import RecipeCollection from './components/RecipeCollection'
-import RecipeExtractor from './components/RecipeExtractor'
 import BookCreator from './components/BookCreator'
 import BookEditor from './components/BookEditor'
 import BookList from './components/BookList'
@@ -30,11 +29,7 @@ function App() {
           />
           <Route
             path="/recipes/new"
-            element={
-              <ProtectedRoute>
-                <RecipeExtractor />
-              </ProtectedRoute>
-            }
+            element={<Navigate to="/recipes" replace />}
           />
           <Route
             path="/books"

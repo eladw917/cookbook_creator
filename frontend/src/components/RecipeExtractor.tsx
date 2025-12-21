@@ -5,12 +5,15 @@ import { useAuth as useClerkAuth } from '@clerk/clerk-react'
 import config from '../config'
 import PizzaTracker from './PizzaTracker'
 import Navigation from './Navigation'
+import ErrorModal from './ErrorModal'
 
 export default function RecipeExtractor() {
   const [url, setUrl] = useState('')
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [success, setSuccess] = useState(false)
+  const [showErrorModal, setShowErrorModal] = useState(false)
+  const [errorModalData, setErrorModalData] = useState<{ message: string; suggestion?: string; title?: string; icon?: string } | null>(null)
   const location = useLocation()
   const navigate = useNavigate()
   const { getToken } = useClerkAuth()
@@ -58,10 +61,52 @@ export default function RecipeExtractor() {
       })
 
       if (!response.ok) {
-        throw new Error('Failed to extract recipe')
+        // Try to parse error response
+        let errorMessage = 'Failed to extract recipe'
+        let isNotRecipeVideo = false
+        let suggestion = ''
+        try {
+          const errorData = await response.json()
+          // Check if it's a structured error response
+          if (errorData.detail) {
+            if (typeof errorData.detail === 'object' && errorData.detail.error === 'not_recipe_video') {
+              isNotRecipeVideo = true
+              errorMessage = errorData.detail.message || 'This video does not appear to be a recipe video'
+              suggestion = errorData.detail.suggestion || 'Please try a cooking tutorial or recipe video.'
+            } else if (typeof errorData.detail === 'string') {
+              errorMessage = errorData.detail
+            } else if (errorData.detail.message) {
+              errorMessage = errorData.detail.message
+            }
+          }
+        } catch (e) {
+          // If parsing fails, use default message
+        }
+        
+        // Show modal for non-recipe video errors
+        if (isNotRecipeVideo) {
+          setErrorModalData({ message: errorMessage, suggestion })
+          setShowErrorModal(true)
+          setLoading(false)
+          return
+        }
+        
+        throw new Error(errorMessage)
       }
 
       const recipe = await response.json()
+
+      // Check for warnings (e.g., no transcript)
+      if (recipe._warnings?.no_transcript) {
+        setErrorModalData({
+          message: recipe._warnings.message || 'No transcript was available for this video.',
+          suggestion: recipe._warnings.suggestion || 'The recipe was extracted from title and description only, so it may be less detailed.',
+          title: 'No Transcript Available',
+          icon: 'ℹ️'
+        })
+        setShowErrorModal(true)
+        // Continue with extraction but show warning
+      }
 
       // Extract video ID
       const videoId =
@@ -103,6 +148,19 @@ export default function RecipeExtractor() {
   return (
     <div className="recipe-extractor">
       <Navigation />
+      {showErrorModal && errorModalData && (
+        <ErrorModal
+          message={errorModalData.message}
+          suggestion={errorModalData.suggestion}
+          title={errorModalData.title}
+          icon={errorModalData.icon}
+          onClose={() => {
+            setShowErrorModal(false)
+            setErrorModalData(null)
+            setError(null)
+          }}
+        />
+      )}
       <header className="extractor-header">
         <div className="header-content">
           <h1>🍳 Add New Recipe</h1>
@@ -155,14 +213,15 @@ export default function RecipeExtractor() {
       <style>{`
         .recipe-extractor {
           min-height: 100vh;
-          background: #f5f5f5;
+          background: #f8f9fa;
         }
 
         .extractor-header {
-          background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-          color: white;
+          background: white;
+          color: #1a1f3a;
           padding: 2rem;
-          box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+          box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05);
+          border-bottom: 1px solid #e5e7eb;
         }
 
         .header-content {
@@ -173,6 +232,7 @@ export default function RecipeExtractor() {
         .header-content h1 {
           margin: 0;
           font-size: 2rem;
+          color: #1a1f3a;
         }
 
         .extractor-content {
@@ -209,7 +269,8 @@ export default function RecipeExtractor() {
 
         .url-input:focus {
           outline: none;
-          border-color: #667eea;
+          border-color: #ff6b35;
+          box-shadow: 0 0 0 3px rgba(255, 107, 53, 0.1);
         }
 
         .loading-section {
@@ -233,7 +294,7 @@ export default function RecipeExtractor() {
         }
 
         .success-section h2 {
-          color: #28a745;
+          color: #10b981;
           margin-bottom: 1rem;
         }
 
