@@ -1,6 +1,5 @@
 import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { useAuth } from '../contexts/AuthContext'
 import { useAuth as useClerkAuth } from '@clerk/clerk-react'
 import { API_BASE_URL } from '../config'
 import Navigation from './Navigation'
@@ -10,14 +9,32 @@ interface Book {
   name: string
   created_at: string
   recipe_count: number
+  recipes?: Array<{
+    id: number
+    title: string
+  }>
+  page_count?: number
 }
 
 export default function BookList() {
   const [books, setBooks] = useState<Book[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  const [expandedBooks, setExpandedBooks] = useState<Set<number>>(new Set())
   const navigate = useNavigate()
   const { getToken } = useClerkAuth()
+
+  const toggleRecipes = (bookId: number) => {
+    setExpandedBooks(prev => {
+      const newSet = new Set(prev)
+      if (newSet.has(bookId)) {
+        newSet.delete(bookId)
+      } else {
+        newSet.add(bookId)
+      }
+      return newSet
+    })
+  }
 
   useEffect(() => {
     fetchBooks()
@@ -37,7 +54,40 @@ export default function BookList() {
       }
 
       const data = await response.json()
-      setBooks(data.books)
+      const booksWithDetails = await Promise.all(
+        data.books.map(async (book: Book) => {
+          try {
+            // Fetch detailed book info to get recipes
+            const detailResponse = await fetch(
+              `${config.API_BASE_URL}/api/books/${book.id}`,
+              {
+                headers: {
+                  Authorization: `Bearer ${token}`,
+                },
+              }
+            )
+            if (detailResponse.ok) {
+              const bookDetail = await detailResponse.json()
+              return {
+                ...book,
+                recipes: bookDetail.recipes?.map((r: any) => ({
+                  id: r.id,
+                  title: r.title,
+                })),
+                // Estimate page count: ~2 pages per recipe + front matter (3 pages) + back cover (1 page)
+                // This is an estimate; actual count would require PDF generation
+                page_count: bookDetail.recipes
+                  ? bookDetail.recipes.length * 2 + 4
+                  : undefined,
+              }
+            }
+            return book
+          } catch {
+            return book
+          }
+        })
+      )
+      setBooks(booksWithDetails)
     } catch (err) {
       setError(err instanceof Error ? err.message : 'An error occurred')
     } finally {
@@ -118,22 +168,21 @@ export default function BookList() {
       <Navigation />
       <header className="books-header">
         <div className="header-content">
-          <h1>📚 My Cookbooks</h1>
+          <h1>My Cookbooks</h1>
+          {books.length > 0 && (
+            <button
+              onClick={() => navigate('/books/create')}
+              className="btn-primary header-button"
+            >
+              Add New
+            </button>
+          )}
         </div>
       </header>
 
-      <div className="books-actions">
-        <button
-          onClick={() => navigate('/books/create')}
-          className="btn-primary"
-        >
-          + Create New Book
-        </button>
-      </div>
-
       {error && (
         <div className="error">
-          <p>❌ {error}</p>
+          <p>{error}</p>
         </div>
       )}
 
@@ -155,33 +204,66 @@ export default function BookList() {
         <div className="books-grid">
           {books.map(book => (
             <div key={book.id} className="book-card">
-              <div className="book-icon">📖</div>
-              <h3>{book.name}</h3>
-              <p className="book-info">
-                {book.recipe_count} recipe{book.recipe_count !== 1 ? 's' : ''}
-              </p>
-              <p className="book-date">
-                Created {new Date(book.created_at).toLocaleDateString()}
-              </p>
-              <div className="book-actions">
-                <button
-                  onClick={() => navigate(`/books/${book.id}/edit`)}
-                  className="btn-secondary"
-                >
-                  ✏️ Edit
-                </button>
-                <button
-                  onClick={() => handleDownloadBook(book.id, book.name)}
-                  className="btn-primary"
-                >
-                  📥 Download PDF
-                </button>
-                <button
-                  onClick={() => handleDeleteBook(book.id)}
-                  className="btn-danger"
-                >
-                  🗑️ Delete
-                </button>
+              <div className="book-card-background-fallback" />
+              <div className="book-card-overlay" />
+              <button
+                onClick={() => handleDeleteBook(book.id)}
+                className="book-delete-button"
+                aria-label="Delete book"
+              >
+                ×
+              </button>
+              <div className={`book-card-content ${expandedBooks.has(book.id) || !book.recipes || book.recipes.length === 0 ? '' : 'recipes-collapsed'}`}>
+                <div className="book-card-header">
+                  <div className="book-title-section">
+                    <h3>{book.name}</h3>
+                    <p className="book-info">
+                      {book.recipe_count} recipe{book.recipe_count !== 1 ? 's' : ''}
+                      {book.page_count && ` • ${book.page_count} pages`}
+                    </p>
+                    <p className="book-date">
+                      Created {new Date(book.created_at).toLocaleDateString()}
+                    </p>
+                    {book.recipes && book.recipes.length > 0 && (
+                      <div className={`book-recipes-list ${expandedBooks.has(book.id) ? 'expanded' : 'collapsed'}`}>
+                        <button
+                          onClick={() => toggleRecipes(book.id)}
+                          className="book-recipes-toggle"
+                        >
+                          <span className="book-recipes-label">
+                            Show recipes{' '}
+                            <span className="book-recipes-arrow">
+                              {expandedBooks.has(book.id) ? '▼' : '▶'}
+                            </span>
+                          </span>
+                        </button>
+                        {expandedBooks.has(book.id) && (
+                          <ul className="book-recipes">
+                            {book.recipes.map(recipe => (
+                              <li key={recipe.id} className="book-recipe-item">
+                                {recipe.title}
+                              </li>
+                            ))}
+                          </ul>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                </div>
+                <div className="book-card-actions">
+                  <button
+                    onClick={() => navigate(`/books/${book.id}/edit`)}
+                    className="btn-link"
+                  >
+                    Edit
+                  </button>
+                  <button
+                    onClick={() => handleDownloadBook(book.id, book.name)}
+                    className="btn-link"
+                  >
+                    Download
+                  </button>
+                </div>
               </div>
             </div>
           ))}
@@ -191,29 +273,53 @@ export default function BookList() {
       <style>{`
         .book-list {
           min-height: 100vh;
-          background: #f5f5f5;
+          background: #ffffff;
         }
 
         .books-header {
-          background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-          color: white;
-          padding: 2rem;
-          box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+          background: transparent;
+          color: #1a1f3a;
+          padding: 4rem 2rem 2rem;
+          max-width: 1400px;
+          margin: 0 auto;
         }
 
         .header-content {
-          max-width: 1200px;
+          max-width: 1400px;
           margin: 0 auto;
+          display: flex;
+          align-items: center;
+          gap: 1rem;
+          flex-wrap: wrap;
         }
 
         .header-content h1 {
           margin: 0;
-          font-size: 2rem;
+          font-size: 3rem;
+          font-weight: 800;
+          color: #1a1f3a !important;
+          background: none !important;
+          -webkit-background-clip: unset !important;
+          -webkit-text-fill-color: #1a1f3a !important;
+          background-clip: unset !important;
+          line-height: 1.2;
+        }
+
+        .header-button {
+          padding: 0.5rem 1rem;
+          font-size: 0.9rem;
+          height: auto;
+        }
+
+        @media (max-width: 768px) {
+          .header-content h1 {
+            font-size: 2rem;
+          }
         }
 
         .books-actions {
-          max-width: 1200px;
-          margin: 2rem auto;
+          max-width: 1400px;
+          margin: 3rem auto 2rem;
           padding: 0 2rem;
           display: flex;
           gap: 1rem;
@@ -221,91 +327,230 @@ export default function BookList() {
         }
 
         .books-grid {
-          max-width: 1200px;
+          max-width: 1400px;
           margin: 0 auto;
-          padding: 0 2rem 2rem;
+          padding: 0 2rem 4rem;
           display: grid;
-          grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
-          gap: 1.5rem;
+          grid-template-columns: repeat(auto-fill, minmax(350px, 1fr));
+          gap: 2rem;
         }
 
         .book-card {
-          background: white;
-          border-radius: 12px;
-          padding: 2rem;
-          box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+          position: relative;
+          border-radius: 16px;
+          overflow: hidden;
+          min-height: 300px;
           transition: transform 0.2s, box-shadow 0.2s;
-          text-align: center;
+        }
+
+        .book-card:has(.book-card-content.recipes-collapsed) {
+          min-height: auto;
         }
 
         .book-card:hover {
           transform: translateY(-4px);
-          box-shadow: 0 4px 16px rgba(0, 0, 0, 0.15);
+          box-shadow: 0 12px 24px rgba(0, 0, 0, 0.15);
         }
 
-        .book-icon {
-          font-size: 4rem;
-          margin-bottom: 1rem;
+        .book-card-background-fallback {
+          position: absolute;
+          top: 0;
+          left: 0;
+          width: 100%;
+          height: 100%;
+          background: linear-gradient(135deg, #e5e7eb 0%, #f3f4f6 100%);
+          z-index: 0;
+        }
+
+        .book-card-overlay {
+          position: absolute;
+          top: 0;
+          left: 0;
+          width: 100%;
+          height: 100%;
+          background: linear-gradient(
+            to bottom,
+            rgba(0, 0, 0, 0) 0%,
+            rgba(0, 0, 0, 0.2) 40%,
+            rgba(0, 0, 0, 0.6) 100%
+          );
+          z-index: 1;
+        }
+
+        .book-delete-button {
+          position: absolute;
+          top: 1rem;
+          right: 1rem;
+          background: none;
+          border: none;
+          color: white;
+          font-size: 2rem;
+          font-weight: 300;
+          line-height: 1;
+          cursor: pointer;
+          z-index: 2;
+          padding: 0;
+          width: auto;
+          height: auto;
+          transition: opacity 0.2s;
+        }
+
+        .book-delete-button:hover {
+          opacity: 0.7;
+        }
+
+        .book-card-content {
+          position: relative;
+          z-index: 1;
+          height: 100%;
+          display: flex;
+          flex-direction: column;
+          justify-content: space-between;
+          padding: 2rem;
+          color: white;
+          width: 100%;
+          box-sizing: border-box;
+        }
+
+        .book-card-content.recipes-collapsed {
+          justify-content: flex-start;
+          height: auto;
+        }
+
+        .book-card-content.recipes-collapsed .book-card-actions {
+          margin-top: 1rem;
+        }
+
+        .book-card-header {
+          margin-bottom: 0.5rem;
+          width: 100%;
+        }
+
+        .book-title-section {
+          width: 100%;
+          max-width: 100%;
         }
 
         .book-card h3 {
           margin: 0 0 0.5rem;
           font-size: 1.5rem;
-          color: #333;
+          font-weight: 700;
+          color: white;
+          line-height: 1.3;
+          word-wrap: break-word;
+          overflow-wrap: break-word;
         }
 
         .book-info {
-          color: #666;
-          font-size: 1rem;
+          color: rgba(255, 255, 255, 0.9);
+          font-size: 0.95rem;
           margin: 0.5rem 0;
+          word-wrap: break-word;
+          overflow-wrap: break-word;
+          line-height: 1.4;
         }
 
         .book-date {
-          color: #999;
-          font-size: 0.85rem;
-          margin: 0.5rem 0 1.5rem;
+          color: rgba(255, 255, 255, 0.8);
+          font-size: 0.875rem;
+          margin: 0.5rem 0 0;
+          word-wrap: break-word;
+          overflow-wrap: break-word;
         }
 
-        .book-actions {
+        .book-recipes-list {
+          margin-top: 0.5rem;
+        }
+
+        .book-recipes-list.collapsed {
+          margin-bottom: 0;
+        }
+
+        .book-recipes-list.expanded {
+          margin-bottom: 0.5rem;
+        }
+
+        .book-recipes-toggle {
+          background: none;
+          border: none;
+          padding: 0;
+          cursor: pointer;
+          display: flex;
+          align-items: center;
+          width: 100%;
+          margin-bottom: 0.5rem;
+          transition: opacity 0.2s;
+        }
+
+        .book-recipes-toggle:hover {
+          opacity: 0.8;
+        }
+
+        .book-recipes-label {
+          color: rgba(255, 255, 255, 0.9);
+          font-size: 0.85rem;
+          font-weight: 600;
+          margin: 0;
+        }
+
+        .book-recipes-arrow {
+          color: rgba(255, 255, 255, 0.7);
+          font-size: 0.75rem;
+          margin-left: 0.25rem;
+        }
+
+        .book-recipes {
+          list-style: none;
+          padding: 0;
+          margin: 0;
           display: flex;
           flex-direction: column;
+          gap: 0.25rem;
+          counter-reset: recipe-counter;
+        }
+
+        .book-recipe-item {
+          color: rgba(255, 255, 255, 0.85);
+          font-size: 0.8rem;
+          line-height: 1.4;
+          word-wrap: break-word;
+          overflow-wrap: break-word;
+          padding-left: 1.5rem;
+          position: relative;
+          counter-increment: recipe-counter;
+        }
+
+        .book-recipe-item::before {
+          content: counter(recipe-counter) '.';
+          position: absolute;
+          left: 0;
+          color: rgba(255, 255, 255, 0.7);
+        }
+
+        .book-card-actions {
+          display: flex;
           gap: 0.75rem;
+          margin-top: auto;
+          flex-wrap: wrap;
         }
 
-        .btn-secondary {
-          background: #6c757d;
-          color: white;
-          padding: 0.75rem 1.5rem;
+        .btn-link {
+          padding: 0.75rem 1.25rem;
+          background: rgba(255, 255, 255, 0.95);
           border: none;
           border-radius: 8px;
           cursor: pointer;
-          font-size: 1rem;
-          font-weight: 600;
-          transition: background 0.2s;
           text-decoration: none;
+          color: #1a1f3a;
+          font-size: 0.9rem;
+          font-weight: 600;
+          transition: all 0.2s;
           display: inline-block;
         }
 
-        .btn-secondary:hover {
-          background: #5a6268;
-        }
-
-        .btn-danger {
-          background: #ff4444;
-          color: white;
-          padding: 0.75rem 1.5rem;
-          border: none;
-          border-radius: 8px;
-          cursor: pointer;
-          font-size: 1rem;
-          font-weight: 600;
-          transition: background 0.2s;
-          text-decoration: none;
-          display: inline-block;
-        }
-
-        .btn-danger:hover {
-          background: #cc0000;
+        .btn-link:hover {
+          background: white;
+          transform: translateY(-1px);
         }
 
         .empty-state {
@@ -313,18 +558,19 @@ export default function BookList() {
           margin: 4rem auto;
           text-align: center;
           padding: 3rem;
-          background: white;
-          border-radius: 12px;
-          box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+          background: transparent;
         }
 
         .empty-state h2 {
-          color: #333;
+          color: #1a1f3a;
+          font-weight: 700;
+          font-size: 1.5rem;
           margin-bottom: 1rem;
         }
 
         .empty-state p {
-          color: #666;
+          color: #6b7280;
+          font-size: 1rem;
           margin-bottom: 2rem;
         }
 
@@ -335,6 +581,36 @@ export default function BookList() {
           justify-content: center;
           min-height: 100vh;
           gap: 1rem;
+          color: #6b7280;
+        }
+
+        .spinner {
+          width: 40px;
+          height: 40px;
+          border: 4px solid #e5e7eb;
+          border-top-color: #1a1f3a;
+          border-radius: 50%;
+          animation: spin 1s linear infinite;
+        }
+
+        @keyframes spin {
+          to {
+            transform: rotate(360deg);
+          }
+        }
+
+        .error {
+          max-width: 1400px;
+          margin: 1rem auto;
+          padding: 1rem 2rem;
+          background: #fef2f2;
+          border: 1px solid #fecaca;
+          border-radius: 8px;
+          color: #ef4444;
+        }
+
+        .error p {
+          margin: 0;
         }
       `}</style>
     </div>

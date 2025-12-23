@@ -109,8 +109,7 @@ export default function BookCreator() {
         throw new Error(errorData.detail || 'Failed to create book')
       }
 
-      const data = await response.json()
-      alert('Book created successfully!')
+      await response.json()
       navigate('/books')
     } catch (err) {
       setError(err instanceof Error ? err.message : 'An error occurred')
@@ -136,7 +135,7 @@ export default function BookCreator() {
       <Navigation />
       <header className="creator-header">
         <div className="header-content">
-          <h1>📖 Create a New Book</h1>
+          <h1>Create a New Book</h1>
         </div>
       </header>
 
@@ -167,7 +166,7 @@ export default function BookCreator() {
 
           {error && (
             <div className="error">
-              <p>❌ {error}</p>
+              <p>{error}</p>
             </div>
           )}
 
@@ -187,7 +186,7 @@ export default function BookCreator() {
             <div className="empty-state">
               <p>You don't have any recipes yet.</p>
               <button
-                onClick={() => navigate('/recipes/new')}
+                onClick={() => navigate('/recipes')}
                 className="btn-primary"
               >
                 Add Your First Recipe
@@ -225,28 +224,40 @@ export default function BookCreator() {
       <style>{`
         .book-creator {
           min-height: 100vh;
-          background: #f5f5f5;
+          background: #ffffff;
         }
 
         .creator-header {
-          background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-          color: white;
-          padding: 2rem;
-          box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+          background: transparent;
+          color: #1a1f3a;
+          padding: 4rem 2rem 2rem;
         }
 
         .header-content {
-          max-width: 1200px;
+          max-width: 1400px;
           margin: 0 auto;
         }
 
         .header-content h1 {
           margin: 0;
-          font-size: 2rem;
+          font-size: 3rem;
+          font-weight: 800;
+          color: #1a1f3a !important;
+          background: none !important;
+          -webkit-background-clip: unset !important;
+          -webkit-text-fill-color: #1a1f3a !important;
+          background-clip: unset !important;
+          line-height: 1.2;
+        }
+
+        @media (max-width: 768px) {
+          .header-content h1 {
+            font-size: 2rem;
+          }
         }
 
         .creator-content {
-          max-width: 1200px;
+          max-width: 1400px;
           margin: 2rem auto;
           padding: 0 2rem;
           display: grid;
@@ -285,7 +296,8 @@ export default function BookCreator() {
 
         .book-name-input:focus {
           outline: none;
-          border-color: #667eea;
+          border-color: #ff6b35;
+          box-shadow: 0 0 0 3px rgba(255, 107, 53, 0.1);
         }
 
         .selection-info {
@@ -333,13 +345,13 @@ export default function BookCreator() {
         }
 
         .recipe-item:hover {
-          border-color: #667eea;
+          border-color: #ff6b35;
           background: #f8f9fa;
         }
 
         .recipe-item.selected {
-          border-color: #667eea;
-          background: #e8eaf6;
+          border-color: #ff6b35;
+          background: #fff5f0;
         }
 
         .recipe-checkbox {
@@ -362,6 +374,13 @@ export default function BookCreator() {
           margin: 0;
           font-size: 0.85rem;
           color: #666;
+          word-wrap: break-word;
+          overflow-wrap: break-word;
+          line-height: 1.4;
+          width: 100%;
+          max-width: 100%;
+          white-space: normal;
+          text-align: left;
         }
 
         .empty-state {

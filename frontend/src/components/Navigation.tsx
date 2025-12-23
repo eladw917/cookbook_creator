@@ -1,90 +1,82 @@
 import { NavLink, useNavigate } from 'react-router-dom'
-import { UserButton, useUser } from '@clerk/clerk-react'
+import { UserButton, useUser, SignInButton, SignUpButton } from '@clerk/clerk-react'
+import logoImage from '../assets/Gemini_Generated_Image_ooiexwooiexwooie.png'
 
 export default function Navigation() {
   const navigate = useNavigate()
   const { isSignedIn } = useUser()
 
-  // Always show navigation - it will adapt based on sign-in status
-  if (!isSignedIn) {
-    return null
-  }
-
   return (
     <nav className="main-nav">
       <div className="nav-content">
         <div className="nav-brand" onClick={() => navigate('/')}>
-          <span className="nav-logo">🍳</span>
+          <img src={logoImage} alt="Cookbook Creator Logo" className="nav-logo" />
           <span className="nav-title">Cookbook Creator</span>
         </div>
 
-        <div className="nav-links">
-          <NavLink
-            to="/recipes"
-            className={({ isActive }) =>
-              isActive ? 'nav-link active' : 'nav-link'
-            }
-          >
-            <span className="nav-icon">📚</span>
-            My Recipes
-          </NavLink>
-          <NavLink
-            to="/recipes/new"
-            className={({ isActive }) =>
-              isActive ? 'nav-link active' : 'nav-link'
-            }
-          >
-            <span className="nav-icon">➕</span>
-            Add Recipe
-          </NavLink>
-          <NavLink
-            to="/books"
-            className={({ isActive }) =>
-              isActive ? 'nav-link active' : 'nav-link'
-            }
-          >
-            <span className="nav-icon">📖</span>
-            My Cookbooks
-          </NavLink>
-          <NavLink
-            to="/books/create"
-            className={({ isActive }) =>
-              isActive ? 'nav-link active' : 'nav-link'
-            }
-          >
-            <span className="nav-icon">✨</span>
-            Create Cookbook
-          </NavLink>
-          <NavLink
-            to="/print-orders"
-            className={({ isActive }) =>
-              isActive ? 'nav-link active' : 'nav-link'
-            }
-          >
-            <span className="nav-icon">📦</span>
-            Print Orders
-          </NavLink>
-        </div>
+        {isSignedIn && (
+          <div className="nav-links">
+            <NavLink
+              to="/recipes"
+              className={({ isActive }) =>
+                isActive ? 'nav-link active' : 'nav-link'
+              }
+            >
+              My Recipes
+            </NavLink>
+            <NavLink
+              to="/books"
+              end
+              className={({ isActive }) =>
+                isActive ? 'nav-link active' : 'nav-link'
+              }
+            >
+              My Cookbooks
+            </NavLink>
+            <NavLink
+              to="/books/create"
+              className={({ isActive }) =>
+                isActive ? 'nav-link active' : 'nav-link'
+              }
+            >
+              Create Cookbook
+            </NavLink>
+          </div>
+        )}
 
-        <div className="nav-user">
-          <UserButton
-            afterSignOutUrl="/"
-            appearance={{
-              elements: {
-                avatarBox: 'w-10 h-10',
-              },
-            }}
-          />
+        <div className="nav-right">
+          {isSignedIn ? (
+            <div className="nav-user">
+              <UserButton
+                afterSignOutUrl="/"
+                appearance={{
+                  elements: {
+                    avatarBox: 'w-10 h-10',
+                  },
+                }}
+              />
+            </div>
+          ) : (
+            <div className="nav-auth">
+              <SignInButton mode="modal">
+                <button className="nav-login">LOG IN</button>
+              </SignInButton>
+              <SignUpButton mode="modal">
+                <button className="nav-signup">SIGN UP</button>
+              </SignUpButton>
+            </div>
+          )}
         </div>
       </div>
 
       <style>{`
         .main-nav {
-          background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-          box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+          background: white;
+          box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05);
           position: sticky;
           top: 0;
           z-index: 1000;
+          border-bottom: 1px solid #e5e7eb;
         }
 
         .nav-content {
@@ -106,56 +98,100 @@ export default function Navigation() {
         }
 
         .nav-brand:hover {
-          opacity: 0.9;
+          opacity: 0.8;
         }
 
         .nav-logo {
-          font-size: 2rem;
+          height: 3rem;
+          width: auto;
+          object-fit: contain;
         }
 
         .nav-title {
-          font-size: 1.5rem;
+          font-size: 1.25rem;
           font-weight: 700;
-          color: white;
+          color: #1a1f3a;
         }
 
         .nav-links {
           display: flex;
-          gap: 0.5rem;
+          gap: 1rem;
           flex: 1;
           margin-left: 2rem;
         }
 
         .nav-link {
-          display: flex;
-          align-items: center;
-          gap: 0.5rem;
-          padding: 0.75rem 1.25rem;
-          color: rgba(255, 255, 255, 0.9);
+          padding: 0.5rem 1rem;
+          color: #1a1f3a;
           text-decoration: none;
-          border-radius: 8px;
           font-weight: 500;
-          transition: all 0.2s;
+          transition: color 0.2s;
           white-space: nowrap;
+          font-size: 0.95rem;
         }
 
         .nav-link:hover {
-          background: rgba(255, 255, 255, 0.15);
-          color: white;
+          color: #1a1f3a;
+          opacity: 0.8;
         }
 
         .nav-link.active {
-          background: rgba(255, 255, 255, 0.25);
-          color: white;
-          font-weight: 600;
+          color: #1a1f3a;
+          font-weight: 700;
+          border-bottom: 3px solid #1a1f3a;
+          padding-bottom: calc(0.5rem - 3px);
+          background: rgba(26, 31, 58, 0.05);
+          border-radius: 6px 6px 0 0;
         }
 
-        .nav-icon {
-          font-size: 1.2rem;
+        .nav-right {
+          display: flex;
+          align-items: center;
+          gap: 1rem;
+          margin-left: auto;
+        }
+
+        .nav-auth {
+          display: flex;
+          align-items: center;
+          gap: 1rem;
+        }
+
+        .nav-login {
+          background: none;
+          border: none;
+          color: #1a1f3a;
+          font-weight: 500;
+          cursor: pointer;
+          padding: 0.5rem 1rem;
+          font-size: 0.95rem;
+          transition: color 0.2s;
+        }
+
+        .nav-login:hover {
+          color: #1a1f3a;
+          opacity: 0.8;
+        }
+
+        .nav-signup {
+          background: #1a1f3a;
+          border: none;
+          color: white;
+          font-weight: 600;
+          cursor: pointer;
+          padding: 0.5rem 1.5rem;
+          border-radius: 6px;
+          font-size: 0.95rem;
+          transition: background 0.2s;
+        }
+
+        .nav-signup:hover {
+          background: #2d3550;
         }
 
         .nav-user {
-          margin-left: auto;
+          display: flex;
+          align-items: center;
         }
 
         /* Mobile responsive */
@@ -175,31 +211,36 @@ export default function Navigation() {
           }
 
           .nav-link {
-            padding: 0.5rem 1rem;
-            font-size: 0.9rem;
+            padding: 0.5rem 0.75rem;
+            font-size: 0.85rem;
           }
 
           .nav-title {
-            font-size: 1.2rem;
+            font-size: 1.1rem;
           }
 
           .nav-logo {
-            font-size: 1.5rem;
+            height: 2rem;
+          }
+
+          .nav-auth {
+            gap: 0.5rem;
+          }
+
+          .nav-signup {
+            padding: 0.5rem 1rem;
+            font-size: 0.85rem;
           }
         }
 
         @media (max-width: 480px) {
           .nav-links {
-            gap: 0.25rem;
+            gap: 0.5rem;
           }
 
           .nav-link {
-            padding: 0.5rem 0.75rem;
-            font-size: 0.85rem;
-          }
-
-          .nav-icon {
-            font-size: 1rem;
+            padding: 0.5rem;
+            font-size: 0.8rem;
           }
         }
       `}</style>

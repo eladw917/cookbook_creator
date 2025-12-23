@@ -376,6 +376,7 @@ async def generate_recipe_pdf(video_id: str) -> bytes:
             await page.evaluate("() => document.fonts.ready")
             
             # Generate PDF with A4 size
+            # Margins are handled via padding in the HTML template
             print("DEBUG: Generating PDF...")
             pdf_bytes = await page.pdf(
                 format="A4",
