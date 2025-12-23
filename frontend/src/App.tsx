@@ -6,7 +6,7 @@ import {
 } from 'react-router-dom'
 import { AuthProvider } from './contexts/AuthContext'
 import './App.css'
-import LandingPage from './components/LandingPage'
+import HomeRoute from './components/HomeRoute'
 import RecipeCollection from './components/RecipeCollection'
 import BookCreator from './components/BookCreator'
 import BookEditor from './components/BookEditor'
@@ -18,7 +18,7 @@ function App() {
     <AuthProvider>
       <Router>
         <Routes>
-          <Route path="/" element={<LandingPage />} />
+          <Route path="/" element={<HomeRoute />} />
           <Route
             path="/recipes"
             element={

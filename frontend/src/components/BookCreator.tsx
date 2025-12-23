@@ -109,7 +109,7 @@ export default function BookCreator() {
         throw new Error(errorData.detail || 'Failed to create book')
       }
 
-      const data = await response.json()
+      await response.json()
       navigate('/books')
     } catch (err) {
       setError(err instanceof Error ? err.message : 'An error occurred')

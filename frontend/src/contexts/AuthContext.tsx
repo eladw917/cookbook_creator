@@ -2,7 +2,7 @@ import {
   createContext,
   useContext,
   useEffect,
-  ReactNode,
+  type ReactNode,
   useState,
 } from 'react'
 import { useUser, useAuth as useClerkAuth } from '@clerk/clerk-react'

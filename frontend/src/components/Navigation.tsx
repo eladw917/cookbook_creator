@@ -26,6 +26,7 @@ export default function Navigation() {
             </NavLink>
             <NavLink
               to="/books"
+              end
               className={({ isActive }) =>
                 isActive ? 'nav-link active' : 'nav-link'
               }
@@ -136,7 +137,11 @@ export default function Navigation() {
 
         .nav-link.active {
           color: #1a1f3a;
-          font-weight: 600;
+          font-weight: 700;
+          border-bottom: 3px solid #1a1f3a;
+          padding-bottom: calc(0.5rem - 3px);
+          background: rgba(26, 31, 58, 0.05);
+          border-radius: 6px 6px 0 0;
         }
 
         .nav-right {

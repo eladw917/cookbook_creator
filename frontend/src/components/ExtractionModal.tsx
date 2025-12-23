@@ -128,7 +128,7 @@ export default function ExtractionModal({ videoId, onComplete }: ExtractionModal
   const isComplete = activeIndex === -1
   
   // Debug: log status to help diagnose issues
-  if (process.env.NODE_ENV === 'development') {
+  if (import.meta.env.MODE === 'development') {
     console.log('ExtractionModal status:', status, 'activeIndex:', activeIndex, 'isComplete:', isComplete)
   }
 

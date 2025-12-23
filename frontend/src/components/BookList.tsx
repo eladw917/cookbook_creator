@@ -1,6 +1,5 @@
 import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { useAuth } from '../contexts/AuthContext'
 import { useAuth as useClerkAuth } from '@clerk/clerk-react'
 import config from '../config'
 import Navigation from './Navigation'

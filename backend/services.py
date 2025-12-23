@@ -5,10 +5,10 @@ import subprocess
 import tempfile
 import base64
 from typing import Dict, List, Optional
-from youtube_transcript_api import YouTubeTranscriptApi
 import yt_dlp
 from google import genai
 from google.genai import types
+from groq import Groq
 import cache_manager
 from prompts import recipe_extraction, timestamp_extraction, recipe_validation
 
@@ -53,7 +53,7 @@ def get_video_metadata(url: str) -> dict:
 
 def validate_is_recipe_video(metadata: dict, video_url: str) -> dict:
     """
-    Validate if a video is a recipe/cooking video using Gemini Flash Lite.
+    Validate if a video is a recipe/cooking video using Groq.
     Uses only metadata (title + description) for fast, cost-effective validation.
     
     Args:
@@ -88,28 +88,52 @@ def validate_is_recipe_video(metadata: dict, video_url: str) -> dict:
         return text
     
     try:
-        print(f"DEBUG: Validating video {video_id} with Gemini Flash Lite...")
+        print(f"DEBUG: Validating video {video_id} with Groq...")
         print(f"DEBUG: Video title: {metadata.get('title', 'N/A')}")
         print(f"DEBUG: Video description length: {len(metadata.get('description', ''))} chars")
-        # Use Gemini Flash Lite for validation (lightweight and cost-effective)
-        model_name = 'gemini-flash-lite-latest'
+        
+        # Initialize Groq client
+        groq_api_key = os.getenv("GROK_API_KEY")
+        if not groq_api_key:
+            raise ValueError("GROK_API_KEY not found. Please set GROK_API_KEY environment variable.")
+        
+        groq_client = Groq(api_key=groq_api_key)
         
         try:
-            response = client.models.generate_content(
-                model=model_name,
-                contents=prompt,
+            # Make streaming API call to Groq
+            completion = groq_client.chat.completions.create(
+                model="openai/gpt-oss-120b",
+                messages=[
+                    {
+                        "role": "user",
+                        "content": prompt
+                    }
+                ],
+                temperature=1,
+                max_completion_tokens=8192,
+                top_p=1,
+                reasoning_effort="medium",
+                stream=True,
+                stop=None
             )
-            print(f"DEBUG: Successfully used {model_name} for validation")
+            
+            # Collect streaming response
+            response_text = ""
+            for chunk in completion:
+                if chunk.choices[0].delta.content:
+                    response_text += chunk.choices[0].delta.content
+            
+            print(f"DEBUG: Successfully received response from Groq")
         except Exception as e:
             error_msg = f"Validation model failed: {e}"
             print(f"ERROR: {error_msg}")
             raise Exception(error_msg)
         
-        print("DEBUG: Received validation response from Gemma")
+        print("DEBUG: Received validation response from Groq")
         
         # Extract JSON from response
         json_pattern = r'```(?:json)?\s*(\{.*?\})\s*```'
-        matches = re.findall(json_pattern, response.text, re.DOTALL)
+        matches = re.findall(json_pattern, response_text, re.DOTALL)
         
         json_text = None
         if matches:
@@ -117,7 +141,7 @@ def validate_is_recipe_video(metadata: dict, video_url: str) -> dict:
             json_text = matches[0]
         else:
             print("DEBUG: No JSON block found, trying to parse full text")
-            json_text = response.text
+            json_text = response_text
         
         # Clean and parse JSON
         json_text = clean_json(json_text)
@@ -140,9 +164,9 @@ def validate_is_recipe_video(metadata: dict, video_url: str) -> dict:
         except json.JSONDecodeError as je:
             print(f"DEBUG: JSON parse error at position {je.pos}: {je.msg}")
             print(f"DEBUG: Context around error: {json_text[max(0, je.pos-50):je.pos+50]}")
-            print(f"DEBUG: Full response text: {response.text[:500]}")
+            print(f"DEBUG: Full response text: {response_text[:500]}")
             # If we can't parse the response, try to infer from the raw text
-            response_lower = response.text.lower()
+            response_lower = response_text.lower()
             if any(keyword in response_lower for keyword in ['not a recipe', 'not recipe', 'is_recipe": false', '"is_recipe":false']):
                 return {
                     "is_recipe": False,
@@ -158,7 +182,7 @@ def validate_is_recipe_video(metadata: dict, video_url: str) -> dict:
             }
             
     except Exception as e:
-        print(f"DEBUG: Gemma validation failed: {e}")
+        print(f"DEBUG: Groq validation failed: {e}")
         import traceback
         print(f"DEBUG: Traceback: {traceback.format_exc()}")
         # On error, log warning but default to allowing through (fail open)
@@ -174,7 +198,7 @@ def validate_is_recipe_video(metadata: dict, video_url: str) -> dict:
 
 def get_transcript(video_id: str) -> List[str]:
     """
-    Fetch video transcript using YouTube Transcript API with yt-dlp fallback.
+    Fetch video transcript using yt-dlp.
     
     Returns:
         List of transcript text segments. Returns empty list if no transcript is available.
@@ -187,148 +211,131 @@ def get_transcript(video_id: str) -> List[str]:
     if cached_transcript:
         return cached_transcript
     
-    # Try official API first
-    try:
-        print("DEBUG: Trying YouTubeTranscriptApi...")
-        transcript_list = YouTubeTranscriptApi.get_transcript(video_id, languages=['en', 'en-GB'])
-        print("DEBUG: YouTubeTranscriptApi success!")
-        transcript = [item['text'] for item in transcript_list]
-        cache_manager.save_step(video_id, "transcript", transcript)
-        return transcript
-    except Exception as e:
-        print(f"DEBUG: YouTubeTranscriptApi failed: {e}")
+    # Use yt-dlp to extract transcript
+    print("DEBUG: Using yt-dlp to extract transcript...")
+    url = f"https://www.youtube.com/watch?v={video_id}"
+    ydl_opts = {
+        'skip_download': True,
+        'writesubtitles': True,
+        'writeautomaticsub': True,
+        'subtitleslangs': ['en'],
+        'quiet': True,
+        # Use multiple player clients to improve subtitle availability and
+        # reduce reliance on a local JS runtime.
+        'extractor_args': {'youtube': {'player_client': ['default', 'web', 'android']}},
+    }
+    
+    with yt_dlp.YoutubeDL(ydl_opts) as ydl:
+        print("DEBUG: extracting info with yt-dlp...")
+        info = ydl.extract_info(url, download=False)
         
-        # Check if it's a "No transcripts found" error - if so, return empty list
-        error_str = str(e).lower()
-        if 'no transcript' in error_str or 'transcript not found' in error_str or 'could not retrieve' in error_str:
+        sub_url = None
+        # Check for manual subtitles
+        if 'subtitles' in info and 'en' in info['subtitles']:
+            print("DEBUG: Found manual subtitles")
+            sub_url = info['subtitles']['en'][0]['url']
+        # Check for automatic captions
+        elif 'automatic_captions' in info and 'en' in info['automatic_captions']:
+            print("DEBUG: Found automatic captions")
+            sub_url = info['automatic_captions']['en'][0]['url']
+        else:
+            print("DEBUG: No subtitles found in yt-dlp info")
+            # Return empty list instead of raising - we can still extract from title/description
             print("WARNING: No transcript available for this video. Will attempt extraction from title and description only.")
             cache_manager.save_step(video_id, "transcript", [])
             return []
         
-        # Fallback to yt-dlp for other errors
-        print("DEBUG: Falling back to yt-dlp...")
-        url = f"https://www.youtube.com/watch?v={video_id}"
-        ydl_opts = {
-            'skip_download': True,
-            'writesubtitles': True,
-            'writeautomaticsub': True,
-            'subtitleslangs': ['en'],
-            'quiet': True,
-            # Use multiple player clients to improve subtitle availability and
-            # reduce reliance on a local JS runtime.
-            'extractor_args': {'youtube': {'player_client': ['default', 'web', 'android']}},
-        }
-        
-        with yt_dlp.YoutubeDL(ydl_opts) as ydl:
-            print("DEBUG: extracting info with yt-dlp...")
-            info = ydl.extract_info(url, download=False)
-            
-            sub_url = None
-            # Check for manual subtitles
-            if 'subtitles' in info and 'en' in info['subtitles']:
-                print("DEBUG: Found manual subtitles")
-                sub_url = info['subtitles']['en'][0]['url']
-            # Check for automatic captions
-            elif 'automatic_captions' in info and 'en' in info['automatic_captions']:
-                print("DEBUG: Found automatic captions")
-                sub_url = info['automatic_captions']['en'][0]['url']
-            else:
-                print("DEBUG: No subtitles found in yt-dlp info")
+        # Download and parse VTT/JSON3
+        print(f"DEBUG: Fetching subtitles from {sub_url[:50]}...")
+        import requests
+        response = requests.get(sub_url)
+        content = response.text
+
+        def parse_json_response(resp):
+            data = resp.json()
+            segments = []
+            if 'events' in data:
+                for event in data['events']:
+                    if 'segs' in event:
+                        for seg in event['segs']:
+                            if 'utf8' in seg and seg['utf8'].strip():
+                                segments.append(seg['utf8'])
+            return segments
+
+        try:
+            text_segments = parse_json_response(response)
+            print(f"DEBUG: Extracted {len(text_segments)} segments")
+            cache_manager.save_step(video_id, "transcript", text_segments)
+            return text_segments
+        except Exception as e:
+            print(f"DEBUG: Failed to parse subtitle JSON: {e}")
+            # Handle HLS playlists that need a second fetch
+            if content.lstrip().startswith("#EXTM3U"):
+                print("DEBUG: Detected HLS subtitle playlist, following first media URL...")
+                playlist_urls = [
+                    line.strip() for line in content.splitlines()
+                    if line.strip() and not line.startswith("#")
+                ]
+                if playlist_urls:
+                    sub_url = playlist_urls[0]
+                    print(f"DEBUG: Fetching subtitle segment {sub_url[:80]}...")
+                    response = requests.get(sub_url)
+                    content = response.text
+                    try:
+                        text_segments = parse_json_response(response)
+                        print(f"DEBUG: Extracted {len(text_segments)} segments from HLS subtitle")
+                        cache_manager.save_step(video_id, "transcript", text_segments)
+                        return text_segments
+                    except Exception as inner_e:
+                        print(f"DEBUG: HLS subtitle JSON parse failed: {inner_e}")
+
+            # Try to parse as VTT format if JSON fails
+            try:
+                print(f"DEBUG: Response content type: {response.headers.get('content-type', 'unknown')}")
+                print(f"DEBUG: Response starts with: {content[:200]}...")
+
+                # Try to parse VTT format
+                if 'WEBVTT' in content:
+                    print("DEBUG: Detected VTT format, attempting to parse...")
+                    lines = content.split('\n')
+                    text_segments = []
+                    for line in lines:
+                        line = line.strip()
+                        # Skip VTT headers and timing lines
+                        if line and not line.startswith('WEBVTT') and not '-->' in line and not line.isdigit():
+                            # Remove HTML tags if any
+                            import re
+                            clean_line = re.sub(r'<[^>]+>', '', line)
+                            if clean_line.strip():
+                                text_segments.append(clean_line.strip())
+                    if text_segments:
+                        print(f"DEBUG: Extracted {len(text_segments)} VTT segments")
+                        cache_manager.save_step(video_id, "transcript", text_segments)
+                        return text_segments
+
+                print("DEBUG: Could not parse subtitle content")
                 # Return empty list instead of raising - we can still extract from title/description
-                print("WARNING: No transcript available for this video. Will attempt extraction from title and description only.")
+                print("WARNING: Could not parse subtitle content. Will attempt extraction from title and description only.")
                 cache_manager.save_step(video_id, "transcript", [])
                 return []
-            
-            # Download and parse VTT/JSON3
-            print(f"DEBUG: Fetching subtitles from {sub_url[:50]}...")
-            import requests
-            response = requests.get(sub_url)
-            content = response.text
-
-            def parse_json_response(resp):
-                data = resp.json()
-                segments = []
-                if 'events' in data:
-                    for event in data['events']:
-                        if 'segs' in event:
-                            for seg in event['segs']:
-                                if 'utf8' in seg and seg['utf8'].strip():
-                                    segments.append(seg['utf8'])
-                return segments
-
-            try:
-                text_segments = parse_json_response(response)
-                print(f"DEBUG: Extracted {len(text_segments)} segments")
-                cache_manager.save_step(video_id, "transcript", text_segments)
-                return text_segments
-            except Exception as e:
-                print(f"DEBUG: Failed to parse subtitle JSON: {e}")
-                # Handle HLS playlists that need a second fetch
-                if content.lstrip().startswith("#EXTM3U"):
-                    print("DEBUG: Detected HLS subtitle playlist, following first media URL...")
-                    playlist_urls = [
-                        line.strip() for line in content.splitlines()
-                        if line.strip() and not line.startswith("#")
-                    ]
-                    if playlist_urls:
-                        sub_url = playlist_urls[0]
-                        print(f"DEBUG: Fetching subtitle segment {sub_url[:80]}...")
-                        response = requests.get(sub_url)
-                        content = response.text
-                        try:
-                            text_segments = parse_json_response(response)
-                            print(f"DEBUG: Extracted {len(text_segments)} segments from HLS subtitle")
-                            cache_manager.save_step(video_id, "transcript", text_segments)
-                            return text_segments
-                        except Exception as inner_e:
-                            print(f"DEBUG: HLS subtitle JSON parse failed: {inner_e}")
-
-                # Try to parse as VTT format if JSON fails
-                try:
-                    print(f"DEBUG: Response content type: {response.headers.get('content-type', 'unknown')}")
-                    print(f"DEBUG: Response starts with: {content[:200]}...")
-
-                    # Try to parse VTT format
-                    if 'WEBVTT' in content:
-                        print("DEBUG: Detected VTT format, attempting to parse...")
-                        lines = content.split('\n')
-                        text_segments = []
-                        for line in lines:
-                            line = line.strip()
-                            # Skip VTT headers and timing lines
-                            if line and not line.startswith('WEBVTT') and not '-->' in line and not line.isdigit():
-                                # Remove HTML tags if any
-                                import re
-                                clean_line = re.sub(r'<[^>]+>', '', line)
-                                if clean_line.strip():
-                                    text_segments.append(clean_line.strip())
-                        if text_segments:
-                            print(f"DEBUG: Extracted {len(text_segments)} VTT segments")
-                            cache_manager.save_step(video_id, "transcript", text_segments)
-                            return text_segments
-
-                    print("DEBUG: Could not parse subtitle content")
-                    # Return empty list instead of raising - we can still extract from title/description
-                    print("WARNING: Could not parse subtitle content. Will attempt extraction from title and description only.")
-                    cache_manager.save_step(video_id, "transcript", [])
-                    return []
-                except Exception as vtt_e:
-                    print(f"DEBUG: VTT parsing also failed: {vtt_e}")
-                    # Return empty list instead of raising - we can still extract from title/description
-                    print("WARNING: Subtitle parsing failed for both JSON and VTT formats. Will attempt extraction from title and description only.")
-                    cache_manager.save_step(video_id, "transcript", [])
-                    return []
+            except Exception as vtt_e:
+                print(f"DEBUG: VTT parsing also failed: {vtt_e}")
+                # Return empty list instead of raising - we can still extract from title/description
+                print("WARNING: Subtitle parsing failed for both JSON and VTT formats. Will attempt extraction from title and description only.")
+                cache_manager.save_step(video_id, "transcript", [])
+                return []
 
 
-def extract_recipe_gemini(input_data: dict, video_url: str) -> dict:
+def extract_recipe_gemini(input_data: dict, video_url: str, force_regenerate: bool = False) -> dict:
     """Extract structured recipe using Gemini"""
     print("DEBUG: Starting Gemini recipe extraction...")
     
     # Extract video ID and check cache
     video_id = video_url.split("v=")[-1].split("&")[0]
-    cached_recipe = cache_manager.load_step(video_id, "recipe")
-    if cached_recipe:
-        return cached_recipe
+    if not force_regenerate:
+        cached_recipe = cache_manager.load_step(video_id, "recipe")
+        if cached_recipe:
+            return cached_recipe
     
     prompt = recipe_extraction.RECIPE_EXTRACTION_PROMPT.format(input_data=json.dumps(input_data))
     

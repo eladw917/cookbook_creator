@@ -35,14 +35,14 @@ database.init_db()
 app = FastAPI(title="Recipe Extract API")
 
 
-async def generate_pdf_background(video_id: str):
+async def generate_pdf_background(video_id: str, force_regenerate: bool = False):
     """Background task to generate PDF after visuals are complete"""
     print(f"========================================")
     print(f"BACKGROUND TASK STARTED: PDF generation for {video_id}")
     print(f"========================================")
     try:
-        print(f"[{video_id}] Generating PDF...")
-        await pdf_service.generate_or_load_pdf(video_id, force_regenerate=False)
+        print(f"[{video_id}] Generating PDF (force_regenerate={force_regenerate})...")
+        await pdf_service.generate_or_load_pdf(video_id, force_regenerate=force_regenerate)
         print(f"[{video_id}] PDF generation completed successfully")
         print(f"========================================")
         print(f"BACKGROUND TASK COMPLETED: PDF generation for {video_id}")
@@ -173,35 +173,32 @@ async def extract_recipe(
         # Get transcript (only if validation passed)
         # Note: get_transcript returns empty list if no transcript available
         transcript = get_transcript(video_id)
-        no_transcript_warning = False
-        
-        # Warn if no transcript but still proceed
+
+        # Stop if no transcript available
         if not transcript:
-            print(f"WARNING: No transcript available for video {video_id}. Extracting recipe from title and description only.")
-            no_transcript_warning = True
+            raise HTTPException(
+                status_code=400,
+                detail={
+                    "error": "no_transcript",
+                    "message": "This video does not have a transcript available",
+                    "suggestion": "Please try a video with English subtitles or captions enabled"
+                }
+            )
         
         # Combine into input JSON
         input_data = {
             "title": metadata.get("title"),
             "description": metadata.get("description"),
-            "transcript": transcript if transcript else []  # Ensure it's always a list
+            "transcript": transcript  # Transcript is guaranteed to exist at this point
         }
-        
-        # Extract recipe using Gemini (can work with just title/description if transcript is empty)
+
+        # Extract recipe using Gemini
         recipe = extract_recipe_gemini(input_data, request.url)
 
         # Add video URL and channel info to recipe data
         recipe["video_url"] = request.url
         if metadata.get("channel_name"):
             recipe["channel_name"] = metadata.get("channel_name")
-        
-        # Add warning if no transcript was available
-        if no_transcript_warning:
-            recipe["_warnings"] = {
-                "no_transcript": True,
-                "message": "No transcript was available for this video. Recipe was extracted from title and description only.",
-                "suggestion": "The recipe may be less detailed than videos with transcripts."
-            }
 
         # If user is authenticated, save to database
         if current_user:
@@ -250,7 +247,16 @@ async def save_recipe_to_collection(
         db_recipe = crud.get_recipe_by_video_id(db, video_id)
         recipe_was_new = False
         
-        if not db_recipe:
+        # Check if cache was cleared (recipe.json doesn't exist but database recipe does)
+        import cache_manager
+        cache_cleared = False
+        if db_recipe:
+            recipe_cache_exists = (cache_manager.get_video_cache_dir(video_id) / "recipe.json").exists()
+            if not recipe_cache_exists:
+                cache_cleared = True
+                print(f"[{video_id}] Cache was cleared - will regenerate recipe from scratch")
+        
+        if not db_recipe or cache_cleared:
             # Recipe doesn't exist, need to extract it
             recipe_was_new = True
             metadata = get_video_metadata(request.url)
@@ -271,50 +277,87 @@ async def save_recipe_to_collection(
             # Get transcript (only if validation passed)
             # Note: get_transcript returns empty list if no transcript available
             transcript = get_transcript(video_id)
-            no_transcript_warning = False
-            
-            # Warn if no transcript but still proceed
+
+            # Stop if no transcript available
             if not transcript:
-                print(f"WARNING: No transcript available for video {video_id}. Extracting recipe from title and description only.")
-                no_transcript_warning = True
+                raise HTTPException(
+                    status_code=400,
+                    detail={
+                        "error": "no_transcript",
+                        "message": "This video does not have a transcript available",
+                        "suggestion": "Please try a video with English subtitles or captions enabled"
+                    }
+                )
             
             input_data = {
                 "title": metadata.get("title"),
                 "description": metadata.get("description"),
-                "transcript": transcript if transcript else []  # Ensure it's always a list
+                "transcript": transcript  # Transcript is guaranteed to exist at this point
             }
-            
-            # Extract recipe using Gemini (can work with just title/description if transcript is empty)
-            recipe_data = extract_recipe_gemini(input_data, request.url)
+
+            # Extract recipe using Gemini (force regenerate if cache was cleared)
+            recipe_data = extract_recipe_gemini(input_data, request.url, force_regenerate=cache_cleared)
             recipe_data["video_url"] = request.url
             if metadata.get("channel_name"):
                 recipe_data["channel_name"] = metadata.get("channel_name")
             
-            # Add warning if no transcript was available
-            if no_transcript_warning:
-                recipe_data["_warnings"] = {
-                    "no_transcript": True,
-                    "message": "No transcript was available for this video. Recipe was extracted from title and description only.",
-                    "suggestion": "The recipe may be less detailed than videos with transcripts."
-                }
-            
-            # Create recipe in database
-            db_recipe = crud.create_recipe(
-                db=db,
-                video_id=video_id,
-                video_url=request.url,
-                title=recipe_data.get("title", metadata.get("title")),
-                recipe_data=recipe_data,
-                channel_name=metadata.get("channel_name")
-            )
+            # Create or update recipe in database
+            if cache_cleared and db_recipe:
+                # Update existing recipe if cache was cleared
+                db_recipe.recipe_data = recipe_data
+                db_recipe.title = recipe_data.get("title", metadata.get("title"))
+                if metadata.get("channel_name"):
+                    db_recipe.channel_name = metadata.get("channel_name")
+                db.commit()
+                db.refresh(db_recipe)
+                print(f"[{video_id}] Updated database recipe after cache clear")
+            else:
+                # Create new recipe in database
+                db_recipe = crud.create_recipe(
+                    db=db,
+                    video_id=video_id,
+                    video_url=request.url,
+                    title=recipe_data.get("title", metadata.get("title")),
+                    recipe_data=recipe_data,
+                    channel_name=metadata.get("channel_name")
+                )
         
         # Check if recipe is already in user's collection
         recipe_already_in_collection = crud.user_has_recipe(db, current_user.id, db_recipe.id)
         
         # Schedule image extraction and PDF generation in background if needed
         import cache_manager
+        import os
+        from pathlib import Path
+        
         existing_image = cache_manager.load_frame(video_id, "dish_visual")
-        existing_pdf = (cache_manager.get_video_cache_dir(video_id) / "recipe.pdf").exists()
+        pdf_path = cache_manager.get_video_cache_dir(video_id) / "recipe.pdf"
+        existing_pdf = pdf_path.exists()
+        
+        # Check if PDF needs regeneration (if any pipeline part is missing or newer)
+        pdf_needs_regeneration = False
+        if existing_pdf:
+            pdf_mtime = pdf_path.stat().st_mtime if pdf_path.exists() else 0
+            # Check if recipe, timestamps, or images are newer than PDF
+            recipe_path = cache_manager.get_video_cache_dir(video_id) / "recipe.json"
+            timestamps_path = cache_manager.get_video_cache_dir(video_id) / "timestamps.json"
+            image_path = cache_manager.get_video_cache_dir(video_id) / "frames" / "step_dish_visual.jpg"
+            
+            if recipe_path.exists() and recipe_path.stat().st_mtime > pdf_mtime:
+                pdf_needs_regeneration = True
+                print(f"[{video_id}] PDF needs regeneration: recipe.json is newer")
+            elif timestamps_path.exists() and timestamps_path.stat().st_mtime > pdf_mtime:
+                pdf_needs_regeneration = True
+                print(f"[{video_id}] PDF needs regeneration: timestamps.json is newer")
+            elif image_path.exists() and image_path.stat().st_mtime > pdf_mtime:
+                pdf_needs_regeneration = True
+                print(f"[{video_id}] PDF needs regeneration: dish_visual image is newer")
+        elif not existing_pdf:
+            # PDF doesn't exist, check if we have the required parts
+            recipe_exists = (cache_manager.get_video_cache_dir(video_id) / "recipe.json").exists()
+            if recipe_exists:
+                pdf_needs_regeneration = True
+                print(f"[{video_id}] PDF needs regeneration: PDF missing but recipe exists")
         
         # Extract key steps from recipe for timestamp extraction
         # Try to get recipe_data from database first, then from cache as fallback
@@ -387,29 +430,31 @@ async def save_recipe_to_collection(
         else:
             print(f"[{video_id}] ✓ Image already exists, skipping extraction")
         
-        # Schedule PDF generation if missing
-        if not existing_pdf:
+        # Schedule PDF generation if missing or needs regeneration
+        # Also regenerate if recipe was just extracted (recipe_was_new=True)
+        if not existing_pdf or pdf_needs_regeneration or recipe_was_new:
             try:
+                if recipe_was_new:
+                    reason = "Recipe just extracted"
+                elif not existing_pdf:
+                    reason = "PDF missing"
+                else:
+                    reason = "Pipeline parts updated"
                 print(f"========================================")
                 print(f"SCHEDULING: Background PDF generation for {video_id}")
-                print(f"Reason: PDF missing")
+                print(f"Reason: {reason}")
                 print(f"========================================")
-                background_tasks.add_task(generate_pdf_background, video_id)
-                print(f"[{video_id}] ✓ Background PDF generation task scheduled")
+                # Force regeneration if PDF exists but is outdated, or if recipe was just extracted
+                force_regenerate = (existing_pdf and pdf_needs_regeneration) or recipe_was_new
+                background_tasks.add_task(generate_pdf_background, video_id, force_regenerate)
+                print(f"[{video_id}] ✓ Background PDF generation task scheduled (force_regenerate={force_regenerate})")
             except Exception as e:
                 print(f"[{video_id}] ✗ Failed to schedule background PDF task: {e}")
         else:
-            print(f"[{video_id}] ✓ PDF already exists, skipping generation")
+            print(f"[{video_id}] ✓ PDF already exists and is up-to-date, skipping generation")
         
         # Add to user's collection (or return success if already exists)
-        # Include warnings in response if present
         response_recipe = db_recipe.recipe_data.copy() if db_recipe.recipe_data else {}
-        if no_transcript_warning and "_warnings" not in response_recipe:
-            response_recipe["_warnings"] = {
-                "no_transcript": True,
-                "message": "No transcript was available for this video. Recipe was extracted from title and description only.",
-                "suggestion": "The recipe may be less detailed than videos with transcripts."
-            }
         
         if recipe_already_in_collection:
             return {

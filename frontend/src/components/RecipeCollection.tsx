@@ -1,6 +1,4 @@
 import { useState, useEffect } from 'react'
-import { useNavigate } from 'react-router-dom'
-import { useAuth } from '../contexts/AuthContext'
 import { useAuth as useClerkAuth } from '@clerk/clerk-react'
 import config from '../config'
 import Navigation from './Navigation'
@@ -28,8 +26,6 @@ export default function RecipeCollection() {
   const [extractingVideoId, setExtractingVideoId] = useState<string | null>(null)
   const [showErrorModal, setShowErrorModal] = useState(false)
   const [errorModalData, setErrorModalData] = useState<{ message: string; suggestion?: string; title?: string; icon?: string } | null>(null)
-  const navigate = useNavigate()
-  const { user, logout } = useAuth()
   const { getToken } = useClerkAuth()
 
   const handleImageError = (videoId: string) => {
@@ -78,6 +74,7 @@ export default function RecipeCollection() {
         // Try to parse error response
         let errorMessage = 'Failed to extract recipe'
         let isNotRecipeVideo = false
+        let isNoTranscript = false
         let suggestion = ''
         try {
           const errorData = await response.json()
@@ -87,6 +84,10 @@ export default function RecipeCollection() {
               isNotRecipeVideo = true
               errorMessage = errorData.detail.message || 'This video does not appear to be a recipe video'
               suggestion = errorData.detail.suggestion || 'Please try a cooking tutorial or recipe video.'
+            } else if (typeof errorData.detail === 'object' && errorData.detail.error === 'no_transcript') {
+              isNoTranscript = true
+              errorMessage = errorData.detail.message || 'This video does not have a transcript available'
+              suggestion = errorData.detail.suggestion || 'Please try a video with English subtitles or captions enabled.'
             } else if (typeof errorData.detail === 'string') {
               errorMessage = errorData.detail
             } else if (errorData.detail.message) {
@@ -96,9 +97,9 @@ export default function RecipeCollection() {
         } catch (e) {
           // If parsing fails, use default message
         }
-        
-        // Show modal for non-recipe video errors
-        if (isNotRecipeVideo) {
+
+        // Show modal for non-recipe video errors and no transcript errors
+        if (isNotRecipeVideo || isNoTranscript) {
           setErrorModalData({ message: errorMessage, suggestion })
           setShowErrorModal(true)
           setExtracting(false)
@@ -109,21 +110,7 @@ export default function RecipeCollection() {
         throw new Error(errorMessage)
       }
       
-      const responseData = await response.json()
-      
-      // Check for warnings in response (e.g., no transcript)
-      // The response has structure: { message, recipe_id, recipe: { ...recipe_data, _warnings?: {...} } }
-      if (responseData.recipe?._warnings?.no_transcript) {
-        const warnings = responseData.recipe._warnings
-        setErrorModalData({
-          message: warnings.message || 'No transcript was available for this video.',
-          suggestion: warnings.suggestion || 'The recipe was extracted from title and description only, so it may be less detailed.',
-          title: 'No Transcript Available',
-          icon: 'ℹ️'
-        })
-        setShowErrorModal(true)
-        // Continue with adding recipe but show warning
-      }
+      await response.json()
       
       // Clear the input and refresh recipes
       setExtractUrl('')
@@ -545,10 +532,13 @@ export default function RecipeCollection() {
 
         .recipe-card.no-image h3 {
           color: #1a1f3a;
+          text-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
         }
 
         .recipe-card.no-image .channel-name {
           color: #6b7280;
+          font-weight: 700;
+          text-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
         }
 
         .recipe-card-overlay {
@@ -576,10 +566,13 @@ export default function RecipeCollection() {
 
         .recipe-card:has(.recipe-card-background:not([style*="background-image"])) h3 {
           color: #1a1f3a;
+          text-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
         }
 
         .recipe-card:has(.recipe-card-background:not([style*="background-image"])) .channel-name {
           color: #6b7280;
+          font-weight: 700;
+          text-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
         }
 
         .recipe-card-content {
@@ -610,6 +603,7 @@ export default function RecipeCollection() {
           font-size: 1.5rem;
           font-weight: 700;
           color: white;
+          text-shadow: 0 2px 4px rgba(0, 0, 0, 0.5), 0 1px 2px rgba(0, 0, 0, 0.7);
           line-height: 1.3;
           word-wrap: break-word;
           overflow-wrap: break-word;
@@ -618,6 +612,7 @@ export default function RecipeCollection() {
         .channel-name {
           color: rgba(255, 255, 255, 0.9);
           font-size: 0.95rem;
+          font-weight: 700;
           margin: 0;
           word-wrap: break-word;
           overflow-wrap: break-word;
@@ -626,6 +621,7 @@ export default function RecipeCollection() {
           max-width: 100%;
           white-space: normal;
           text-align: left;
+          text-shadow: 0 2px 4px rgba(0, 0, 0, 0.5), 0 1px 2px rgba(0, 0, 0, 0.7);
         }
 
         .recipe-card-actions {

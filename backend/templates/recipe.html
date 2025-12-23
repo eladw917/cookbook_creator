@@ -9,7 +9,7 @@
         /* Bottom margin is now handled at PDF generation level */
         --page-bottom-padding: 0mm;
       }
-      @import url('https://fonts.googleapis.com/css2?family=Libre+Baskerville:wght@400;700&family=Open+Sans:wght@400;600&display=swap');
+      @import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&display=swap');
 
       * {
         margin: 0;
@@ -23,7 +23,7 @@
       }
 
       body {
-        font-family: 'Open Sans', sans-serif;
+        font-family: 'DM Sans', sans-serif;
         line-height: 1.6;
         color: #333;
         background: white;
@@ -32,8 +32,9 @@
       /* Page 1: Hero Page */
       .hero-page {
         width: 210mm;
-        min-height: 277mm;
-        max-height: 277mm;
+        min-height: 297mm;
+        max-height: 297mm;
+        padding: 13mm;
         box-sizing: border-box;
         page-break-after: always;
         display: flex;
@@ -51,7 +52,7 @@
       }
 
       .hero-content {
-        padding: 40px 60px;
+        padding: 40px 0;
         flex: 1;
         display: flex;
         flex-direction: column;
@@ -59,7 +60,7 @@
       }
 
       .hero-title {
-        font-family: 'Libre Baskerville', serif;
+        font-family: 'DM Sans', sans-serif;
         font-size: 48px;
         font-weight: 700;
         line-height: 1.2;
@@ -76,12 +77,20 @@
 
       .time-badges {
         display: flex;
+        justify-content: center;
         gap: 40px;
         margin-top: 30px;
       }
 
       .time-badge {
         text-align: center;
+      }
+
+      .time-badge-icon {
+        width: 50px;
+        height: 50px;
+        margin: 0 auto 8px auto;
+        display: block;
       }
 
       .time-badge-label {
@@ -99,12 +108,33 @@
         color: #1a1a1a;
       }
 
+      .time-badge-value-split {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 2px;
+      }
+
+      .time-badge-hours {
+        font-size: 28px;
+        font-weight: 700;
+        color: #1a1a1a;
+        line-height: 1;
+      }
+
+      .time-badge-minutes {
+        font-size: 20px;
+        font-weight: 600;
+        color: #666;
+        line-height: 1;
+      }
+
       /* Page 2+: Recipe Content */
       .content-page {
         width: 210mm;
-        min-height: 277mm;
-        max-height: 277mm;
-        padding: 50px 40px 50px 40px;
+        min-height: 297mm;
+        max-height: 297mm;
+        padding: 50px 13mm 50px 13mm;
         display: flex;
         gap: 0;
         page-break-after: always;
@@ -155,27 +185,33 @@
       /* Overflow pages for instructions that don't fit on page 2 */
       .overflow-page {
         width: 210mm;
-        min-height: 277mm;
-        padding: 80px 40px 50px 40px;
+        min-height: 297mm;
+        padding: 80px 13mm 50px 13mm;
         page-break-before: always;
         box-sizing: border-box;
         margin-bottom: 20mm;
       }
 
       .overflow-page .instructions-list {
-        list-style: disc;
-        padding-left: 20px;
+        list-style: none;
+        padding-left: 0;
         margin: 0;
       }
 
       .overflow-page .instruction-item {
         margin-bottom: 8px;
+        padding-bottom: 8px;
+        border-bottom: 1px solid rgba(0, 0, 0, 0.1);
         break-inside: avoid;
-        padding-left: 5px;
+        padding-left: 0;
+      }
+
+      .overflow-page .instruction-item:last-child {
+        border-bottom: none;
       }
 
       .section-title {
-        font-family: 'Libre Baskerville', serif;
+        font-family: 'DM Sans', sans-serif;
         font-size: 18px;
         font-weight: 700;
         margin-bottom: 10px;
@@ -210,7 +246,7 @@
       }
 
       .ingredient-subheader {
-        font-family: 'Libre Baskerville', serif;
+        font-family: 'DM Sans', sans-serif;
         font-size: 14px;
         font-weight: 700;
         margin-top: 10px;
@@ -221,19 +257,22 @@
       }
 
       .instructions-list {
-        list-style: disc;
-        padding-left: 20px;
+        list-style: none;
+        padding-left: 0;
         margin: 0;
       }
 
       .instruction-item {
         margin-bottom: 8px;
+        padding-bottom: 8px;
+        border-bottom: 1px solid rgba(0, 0, 0, 0.1);
         break-inside: avoid;
-        padding-left: 5px;
+        padding-left: 0;
+        list-style: none;
       }
 
-      .instruction-item::marker {
-        color: #1a1a1a;
+      .instruction-item:last-child {
+        border-bottom: none;
       }
 
       .instruction-text {
@@ -265,17 +304,91 @@
           <p class="hero-description">{{ recipe.description }}</p>
         </div>
         <div class="time-badges">
+          {# Prep Time #}
+          {% set prep_lower = recipe.prep_time.lower() %}
+          {% set prep_has_hours = 'hour' in prep_lower %}
+          {% set prep_has_minutes = 'minute' in prep_lower %}
+          {% set prep_hours = '' %}
+          {% set prep_minutes = '' %}
+          {% if prep_has_hours and prep_has_minutes %}
+            {% set prep_parts = prep_lower.split('hour') %}
+            {% set prep_hour_num = prep_parts[0].strip().split()[-1] %}
+            {% set prep_hours = prep_hour_num + ' hour' + ('s' if prep_hour_num != '1' else '') %}
+            {% set prep_minute_part = prep_parts[1] if prep_parts|length > 1 else '' %}
+            {% if prep_minute_part %}
+              {% set prep_minute_num = prep_minute_part.split('minute')[0].strip().split()[-1] %}
+              {% set prep_minutes = prep_minute_num + ' min' %}
+            {% endif %}
+          {% endif %}
           <div class="time-badge">
+            <img src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAADIAAAAyCAYAAAAeP4ixAAADe0lEQVR4AeyYj1XbMBDGo05AFyBmg3SDdoI2ExQ2gAkKE9BOAJ2g6QRkg7IBzgRlA/d3NNK7KJYtnZLCK/HT4ZN0950+/TmLvJn8J8+ByEtbyMOKpFakaZqb6XTaTQck5VvT/npWJGeG9ex3XXc6NrPavk8n5qcxjLh/cEUkSM7AYtDaetu2i1KMJBFm5Ucp2HPaJ4mwEmF5nXMXzrkPbi16wLTNkdBn1Oca06IniURg9yz30gt9LeLLkW+3vgFqEF8evVLyziWygcmsL3wDK/fZ6xXvj94X7Fuvl7xNRAjwHfHlvVesbyZDY/y04JiIsIXuLcFyfMBe5tjFNiYiMchLqO+ECKlaH9YiXvjOihwSxjVE9PY6TeDnNIc0j7HGpJpfzETILuHAc1jNmQtfnbECZj6Fv5ZmIriHFIxu3lr46q1lSr1gTIaIhI8es3Yn9y4ttD0IwC6FjGX6GMoYkkTYOmdiUCDPapokwuwsIXOVO7qmafRHbZLzWHxSuEki4gCZy9Vq5VYJgag+J+HQim+mBB+wTB9CH2eQiDcaeIfrBGemOAVHPt8G4ox2VRFhxXSWORqNtm0QfMDSq7ttOdJSRWQE+592H4io6Q65nyyUfU6w1VeTgKFwi9TqFSHb6L0dslDGKMK1Bgx91jJct02qiQAZ7kdkIT3LdKVLZBuyX9pjuKeaCNlmI//ra8yQrocVY+i+XL2aSG6gfdtVE+HQntcOchcYVUTYOnfs9euISMvhPUPkt64T3lqkTS6jG/9ACQZYvyKcoqqZyPHx8Q2R9EVxsb6TnbDnb5ElEhdpu8XuHQJHp7PVbI0JbHkxEWErNIwifDPQ5wxs3hce23Pksq8PlrJyskJP3eCcYts8VQr/mIiwFcI/VQSX2V/0xWW7YNpdd133Bf13nw1kZFWCP7YBu88+1WYiosEYSJhR3d6jhwti3JdazdhuqF5MhKXX52IIW/pMVw9iZH9YJYhIMRGcAhG21cbHkL6Nwky/xeYKuUB3G53blXvVNFN6lmohkgXsjdh6l8hXX0+9nXOPqq9Y3TuR4hEZHaqIkGGOmh09k8rHQiSkSmLPIPOwIwlnD1wdg+p4KSbStq0+lOMRDBaWGMVEZFySgTicxbMmvkMimII9ZJPqMxERMGZNriXJ37xkQKUimIJtETMRS7B9+hyI7HN2Ldh/AAAA//958smnAAAABklEQVQDAAGwD4M4qTxOAAAAAElFTkSuQmCC" alt="Prep" class="time-badge-icon" />
             <div class="time-badge-label">PREP</div>
+            {% if prep_has_hours and prep_has_minutes %}
+            <div class="time-badge-value-split">
+              <div class="time-badge-hours">{{ prep_hours }}</div>
+              <div class="time-badge-minutes">{{ prep_minutes }}</div>
+            </div>
+            {% else %}
             <div class="time-badge-value">{{ recipe.prep_time }}</div>
+            {% endif %}
           </div>
+          
+          {# Cook Time #}
+          {% set cook_lower = recipe.cook_time.lower() %}
+          {% set cook_has_hours = 'hour' in cook_lower %}
+          {% set cook_has_minutes = 'minute' in cook_lower %}
+          {% set cook_hours = '' %}
+          {% set cook_minutes = '' %}
+          {% if cook_has_hours and cook_has_minutes %}
+            {% set cook_parts = cook_lower.split('hour') %}
+            {% set cook_hour_num = cook_parts[0].strip().split()[-1] %}
+            {% set cook_hours = cook_hour_num + ' hour' + ('s' if cook_hour_num != '1' else '') %}
+            {% set cook_minute_part = cook_parts[1] if cook_parts|length > 1 else '' %}
+            {% if cook_minute_part %}
+              {% set cook_minute_num = cook_minute_part.split('minute')[0].strip().split()[-1] %}
+              {% set cook_minutes = cook_minute_num + ' min' %}
+            {% endif %}
+          {% endif %}
           <div class="time-badge">
+            <img src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAADIAAAAyCAYAAAAeP4ixAAACAUlEQVR4AexY0VXDMAxsmIANrG6QEWATukG7AUxAN6AjsAFswAh1JmCEcPowVdoosR9KYvKcFz07tny6kxJjerdZyVWE5FbIUpFSkYkyYP5qOefOzrnWDduXtR5TISDPBCmCZA3fc4RftIupEEStYbF3jOBYrI21kOjA1o6qECJ6S7VUcqn47K/FUIW0bfuUaloQbTwVn/01LFWItiDXcVVIVVWnHE1LpCrEe7/L0ZKF4MN6yNGSheDD+sjRkoVoC3IdV7+RXAlrvKKEYPd6bJqmahYwjq2Rl+NRQuSCgf6iU0XIounvCV4q0pOURYeGKuIFs1r05+7K2JJTh4cqBNvee/DEX/jX0J+7lbHB6VOLrwrBgfEgF+F/7JaI9kQ01xlszzE34gKnnXjsdFUh7IUMHLkNxtmBzXUG67wF4PISePS1g0K894cxgD5Q6zFwOILL8xDuoBBeyAB8NGEwPHvYXLfnmBwbHDqveR+BUSFhEYMBdAurZrItxwzxx9poIWNAS8+vVwhveRZGuK6rhKF7C2zGuMaerCLYpm9+28XY9zUBq+fJhDBBVKDmlo2Iam6nshshf92RQFRu0ZK87HuDOAh1uW+EXKb+V68ImbheyfClIskpm3hBqYiWYGyrvwdLHPpOwY/7mAsHzm0Yt2pLRawyaYVTKmKVSSuc1VTkBwAA//+6MCbHAAAABklEQVQDAJuunpL+BihdAAAAAElFTkSuQmCC" alt="Cook" class="time-badge-icon" />
             <div class="time-badge-label">COOK</div>
+            {% if cook_has_hours and cook_has_minutes %}
+            <div class="time-badge-value-split">
+              <div class="time-badge-hours">{{ cook_hours }}</div>
+              <div class="time-badge-minutes">{{ cook_minutes }}</div>
+            </div>
+            {% else %}
             <div class="time-badge-value">{{ recipe.cook_time }}</div>
+            {% endif %}
           </div>
+          
+          {# Total Time #}
+          {% set total_lower = recipe.total_time.lower() %}
+          {% set total_has_hours = 'hour' in total_lower %}
+          {% set total_has_minutes = 'minute' in total_lower %}
+          {% set total_hours = '' %}
+          {% set total_minutes = '' %}
+          {% if total_has_hours and total_has_minutes %}
+            {% set total_parts = total_lower.split('hour') %}
+            {% set total_hour_num = total_parts[0].strip().split()[-1] %}
+            {% set total_hours = total_hour_num + ' hour' + ('s' if total_hour_num != '1' else '') %}
+            {% set total_minute_part = total_parts[1] if total_parts|length > 1 else '' %}
+            {% if total_minute_part %}
+              {% set total_minute_num = total_minute_part.split('minute')[0].strip().split()[-1] %}
+              {% set total_minutes = total_minute_num + ' min' %}
+            {% endif %}
+          {% endif %}
           <div class="time-badge">
+            <img src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAADIAAAAyCAYAAAAeP4ixAAAC90lEQVR4AeyYgXXaMBCG7U7gLgDuBM0IZIN2g7BBO0GSCTJC2SDdIIzQDYAJ6Abqd0rOTwGdsQUybp79dDrpdJL+/yRhmU/FB3kmImNbyGlFphXJFAFza83nczdPl31d1w+ZMEeHNYlEvbsbK+fcPYHYd+9ynmcuIoqqYmXqYoDHJLLb7codAoYt4pPUVbyBrCzLW7WFmiZNd1rIqU0iRHIhwuQV4pPUVbzhNbtRW6hfm3w+D+3nlv2Ikcwkwh5/EaFPQ0TqKth9ov6EeN9Q+0YybHfIUXuqjSGjySQS9R6x0SSi+x3sZ50RztCjjnUJDZ5oMolEvdOMf9O69etlEuEd4EQYrkZ8krqKN5DJXldbqGnStNJCTm0SudCkW57rrgh7ey0CoQaI1FWwa/qjtkCvKMv75Ys65dbmihDJWxEANESkroLdJwD/VFugl5TX3mGgzCQy0PwXm+aSRC4GKmWgiUhK1HL2mVYkZ3RTxr7KinCVl/SNTD4Vmtt1CgHtMxgRQD/pFcY5t3HOPTvn5Hq/Vzs+CwXWV2cnArgHAeqc+3EKHD4v4nvKL9aelQigNoC7j02MrbkxUH6X6OcIQK8tl40IYDaga27OlAuuM9+Db5LPQZmm8t0tmQDspU9XyUKEaMofDiGJrYDm/vXbAkbbUnzCdoLRmUwSEYC2LjvR/BUAEhKdb8EHZCrm6vQD0IsIEfKHEaBNpCh7G22ylYrDiQHWmUTx9rDPHt+KhYyv5TbdiwgDtUWnhgzzumf8NDXf+2rootlmvf9u7UKk6jJ54BP6V5DbpEgwXsEqn/zpbiUym81kr1fhoD3L0lcOfYqEU30NK7GySYQo1OxV+fWJ9RvUxn69OTWhSYSOC4gsRyLN4QdXNJlEOHCrEYn5/lFWJhF1+F/0EZG6ruVqfW05OX9x8BwRYTutOVxyvR6tCMYDHsUREXHgbVyKHqNY2KJEhIDVQdquJW2YTCICVjqOSQSTJa1ErE5jtE9ExrYq04qMbUX+AQAA//8vUfnRAAAABklEQVQDAInwhpLgLyyqAAAAAElFTkSuQmCC" alt="Total" class="time-badge-icon" />
             <div class="time-badge-label">TOTAL</div>
+            {% if total_has_hours and total_has_minutes %}
+            <div class="time-badge-value-split">
+              <div class="time-badge-hours">{{ total_hours }}</div>
+              <div class="time-badge-minutes">{{ total_minutes }}</div>
+            </div>
+            {% else %}
             <div class="time-badge-value">{{ recipe.total_time }}</div>
+            {% endif %}
           </div>
         </div>
       </div>
@@ -398,7 +511,7 @@
     <!-- Overflow Pages: Full Width Instructions (if they don't fit on page 2) -->
     {% if overflow_steps and overflow_steps|length > 0 %}
     <div class="overflow-page">
-      <h2 class="section-title">Instructions (continued)</h2>
+      <h2 class="section-title">{{ recipe.title }} (continued)</h2>
       <ul class="instructions-list">
         {% for instruction in overflow_steps %}
         <li class="instruction-item">

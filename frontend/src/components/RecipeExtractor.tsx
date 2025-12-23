@@ -1,6 +1,5 @@
 import { useState, useEffect } from 'react'
 import { useLocation, useNavigate } from 'react-router-dom'
-import { useAuth } from '../contexts/AuthContext'
 import { useAuth as useClerkAuth } from '@clerk/clerk-react'
 import config from '../config'
 import PizzaTracker from './PizzaTracker'
@@ -64,6 +63,7 @@ export default function RecipeExtractor() {
         // Try to parse error response
         let errorMessage = 'Failed to extract recipe'
         let isNotRecipeVideo = false
+        let isNoTranscript = false
         let suggestion = ''
         try {
           const errorData = await response.json()
@@ -73,6 +73,10 @@ export default function RecipeExtractor() {
               isNotRecipeVideo = true
               errorMessage = errorData.detail.message || 'This video does not appear to be a recipe video'
               suggestion = errorData.detail.suggestion || 'Please try a cooking tutorial or recipe video.'
+            } else if (typeof errorData.detail === 'object' && errorData.detail.error === 'no_transcript') {
+              isNoTranscript = true
+              errorMessage = errorData.detail.message || 'This video does not have a transcript available'
+              suggestion = errorData.detail.suggestion || 'Please try a video with English subtitles or captions enabled.'
             } else if (typeof errorData.detail === 'string') {
               errorMessage = errorData.detail
             } else if (errorData.detail.message) {
@@ -82,9 +86,9 @@ export default function RecipeExtractor() {
         } catch (e) {
           // If parsing fails, use default message
         }
-        
-        // Show modal for non-recipe video errors
-        if (isNotRecipeVideo) {
+
+        // Show modal for non-recipe video errors and no transcript errors
+        if (isNotRecipeVideo || isNoTranscript) {
           setErrorModalData({ message: errorMessage, suggestion })
           setShowErrorModal(true)
           setLoading(false)
@@ -95,23 +99,6 @@ export default function RecipeExtractor() {
       }
 
       const recipe = await response.json()
-
-      // Check for warnings (e.g., no transcript)
-      if (recipe._warnings?.no_transcript) {
-        setErrorModalData({
-          message: recipe._warnings.message || 'No transcript was available for this video.',
-          suggestion: recipe._warnings.suggestion || 'The recipe was extracted from title and description only, so it may be less detailed.',
-          title: 'No Transcript Available',
-          icon: 'ℹ️'
-        })
-        setShowErrorModal(true)
-        // Continue with extraction but show warning
-      }
-
-      // Extract video ID
-      const videoId =
-        urlToExtract.split('v=')[1]?.split('&')[0] ||
-        urlToExtract.split('youtu.be/')[1]?.split('?')[0]
 
       // Extract visuals
       const keySteps: { [key: string]: string } = {}
