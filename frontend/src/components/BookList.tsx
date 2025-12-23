@@ -59,7 +59,7 @@ export default function BookList() {
           try {
             // Fetch detailed book info to get recipes
             const detailResponse = await fetch(
-              `${config.API_BASE_URL}/api/books/${book.id}`,
+              `${API_BASE_URL}/api/books/${book.id}`,
               {
                 headers: {
                   Authorization: `Bearer ${token}`,

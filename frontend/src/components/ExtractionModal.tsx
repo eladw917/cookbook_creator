@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import config from '../config'
+import { API_BASE_URL } from '../config'
 
 interface ExtractionModalProps {
   videoId: string
@@ -53,7 +53,7 @@ export default function ExtractionModal({ videoId, onComplete }: ExtractionModal
       }
 
       try {
-        const response = await fetch(`${config.API_BASE_URL}/api/cache/${videoId}/status`)
+        const response = await fetch(`${API_BASE_URL}/api/cache/${videoId}/status`)
         if (response.ok) {
           const data = await response.json()
           setStatus(data)
@@ -102,7 +102,7 @@ export default function ExtractionModal({ videoId, onComplete }: ExtractionModal
     }, 1000)
 
     // Initial fetch
-    fetch(`${config.API_BASE_URL}/api/cache/${videoId}/status`)
+    fetch(`${API_BASE_URL}/api/cache/${videoId}/status`)
       .then(res => res.json())
       .then(data => {
         setStatus(data)

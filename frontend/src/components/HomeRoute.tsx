@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { Navigate } from 'react-router-dom'
 import { useUser, useAuth as useClerkAuth } from '@clerk/clerk-react'
-import config from '../config'
+import { API_BASE_URL } from '../config'
 import LandingPage from './LandingPage'
 
 export default function HomeRoute() {
@@ -30,7 +30,7 @@ export default function HomeRoute() {
           return
         }
 
-        const response = await fetch(`${config.API_BASE_URL}/api/recipes`, {
+        const response = await fetch(`${API_BASE_URL}/api/recipes`, {
           headers: {
             Authorization: `Bearer ${token}`,
           },

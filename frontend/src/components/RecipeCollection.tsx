@@ -1,5 +1,5 @@
-import { useState, useEffect } from 'react'
-import { useAuth as useClerkAuth } from '@clerk/clerk-react'
+import { useState, useEffect, useCallback } from 'react'
+import { useAuth as useClerkAuth, useUser } from '@clerk/clerk-react'
 import { API_BASE_URL } from '../config'
 import Navigation from './Navigation'
 import ExtractionModal from './ExtractionModal'
@@ -27,6 +27,7 @@ export default function RecipeCollection() {
   const [showErrorModal, setShowErrorModal] = useState(false)
   const [errorModalData, setErrorModalData] = useState<{ message: string; suggestion?: string; title?: string; icon?: string } | null>(null)
   const { getToken } = useClerkAuth()
+  const { isLoaded: isUserLoaded, isSignedIn } = useUser()
 
   const handleImageError = (videoId: string) => {
     setImageErrors(prev => new Set(prev).add(videoId))
@@ -61,7 +62,7 @@ export default function RecipeCollection() {
 
     try {
       const token = await getToken()
-      const response = await fetch(`${config.API_BASE_URL}/api/recipes`, {
+      const response = await fetch(`${API_BASE_URL}/api/recipes`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -125,31 +126,66 @@ export default function RecipeCollection() {
     }
   }
 
-  useEffect(() => {
-    fetchRecipes()
-  }, [])
-
-  const fetchRecipes = async () => {
+  const fetchRecipes = useCallback(async () => {
     try {
+      setLoading(true)
+      setError(null)
       const token = await getToken()
+      
+      if (!token) {
+        throw new Error('No authentication token available')
+      }
+      
+      console.log('Fetching recipes from:', `${API_BASE_URL}/api/recipes`)
       const response = await fetch(`${API_BASE_URL}/api/recipes`, {
         headers: {
           Authorization: `Bearer ${token}`,
         },
       })
 
+      console.log('Response status:', response.status, response.statusText)
+      
       if (!response.ok) {
-        throw new Error('Failed to fetch recipes')
+        const errorText = await response.text()
+        console.error('Error response:', errorText)
+        let errorMessage = 'Failed to fetch recipes'
+        try {
+          const errorData = JSON.parse(errorText)
+          errorMessage = errorData.detail || errorMessage
+        } catch {
+          errorMessage = errorText || errorMessage
+        }
+        throw new Error(errorMessage)
       }
 
       const data = await response.json()
-      setRecipes(data.recipes)
+      console.log('Recipes data received:', data)
+      console.log('Number of recipes:', data.recipes?.length || 0)
+      
+      if (data.recipes && Array.isArray(data.recipes)) {
+        setRecipes(data.recipes)
+      } else {
+        console.warn('Unexpected data format:', data)
+        setRecipes([])
+      }
     } catch (err) {
+      console.error('Error fetching recipes:', err)
       setError(err instanceof Error ? err.message : 'An error occurred')
     } finally {
       setLoading(false)
     }
-  }
+  }, [getToken])
+
+  useEffect(() => {
+    // Wait for Clerk to load and user to be signed in before fetching
+    if (isUserLoaded && isSignedIn) {
+      fetchRecipes()
+    } else if (isUserLoaded && !isSignedIn) {
+      // User is not signed in, set loading to false
+      setLoading(false)
+      setError('Please sign in to view your recipes')
+    }
+  }, [isUserLoaded, isSignedIn, fetchRecipes])
 
   const handleDeleteRecipe = async (recipeId: number) => {
     if (
@@ -286,7 +322,7 @@ export default function RecipeCollection() {
           {recipes.map(recipe => {
             const hasImageError = imageErrors.has(recipe.video_id)
             const retryKey = imageRetryKeys.get(recipe.video_id) || 0
-            const imageUrl = `${config.API_BASE_URL}/api/cache/${recipe.video_id}/image${retryKey > 0 ? `?retry=${retryKey}` : ''}`
+            const imageUrl = `${API_BASE_URL}/api/cache/${recipe.video_id}/image${retryKey > 0 ? `?retry=${retryKey}` : ''}`
             
             return (
               <div key={recipe.id} className={`recipe-card ${hasImageError ? 'no-image' : ''}`}>
@@ -330,7 +366,7 @@ export default function RecipeCollection() {
                       Watch Video
                     </a>
                     <a
-                      href={`${config.API_BASE_URL}/api/cache/${recipe.video_id}/pdf`}
+                      href={`${API_BASE_URL}/api/cache/${recipe.video_id}/pdf`}
                       target="_blank"
                       rel="noopener noreferrer"
                       className="btn-link"

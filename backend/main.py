@@ -617,7 +617,29 @@ async def get_user_recipes(
     Get all recipes in user's collection
     """
     try:
+        print(f"DEBUG: Getting recipes for user_id={current_user.id}, clerk_id={current_user.clerk_id}")
         recipes = crud.get_user_recipes(db, current_user.id)
+        print(f"DEBUG: Found {len(recipes)} recipes for user_id={current_user.id}")
+        
+        # Debug: Check user_recipes table directly
+        user_recipes_count = db.query(models.UserRecipe).filter(
+            models.UserRecipe.user_id == current_user.id
+        ).count()
+        print(f"DEBUG: UserRecipe associations found: {user_recipes_count}")
+        
+        # Debug: Check all recipes in database
+        all_recipes_count = db.query(models.Recipe).count()
+        print(f"DEBUG: Total recipes in database: {all_recipes_count}")
+        
+        # Debug: Check all users in database
+        all_users = db.query(models.User).all()
+        print(f"DEBUG: Total users in database: {len(all_users)}")
+        for user in all_users:
+            user_recipe_count = db.query(models.UserRecipe).filter(
+                models.UserRecipe.user_id == user.id
+            ).count()
+            print(f"DEBUG: User {user.id} (clerk_id={user.clerk_id}) has {user_recipe_count} recipes")
+        
         return {
             "recipes": [
                 {
@@ -627,12 +649,15 @@ async def get_user_recipes(
                     "title": recipe.title,
                     "channel_name": recipe.channel_name,
                     "recipe_data": recipe.recipe_data,
-                    "created_at": recipe.created_at
+                    "created_at": recipe.created_at.isoformat() if recipe.created_at else None
                 }
                 for recipe in recipes
             ]
         }
     except Exception as e:
+        import traceback
+        print(f"ERROR: Failed to get user recipes: {e}")
+        print(f"ERROR: Traceback: {traceback.format_exc()}")
         raise HTTPException(status_code=500, detail=str(e))
 
 
